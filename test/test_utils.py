@@ -98,8 +98,17 @@ def test_get_non_ref_samples(cyvcf_example_variant):
     """
 
     samples = ['male', 'father', 'mother']
-    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples)
+    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples=set(samples))
     assert het == {'male'}
+    assert not hom
+
+
+def test_get_non_ref_samples_not_in_pedigree(cyvcf_example_variant):
+    """samples absent from the pedigree are dropped, even with a variant call"""
+
+    samples = ['male', 'father', 'mother']
+    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples={'father', 'mother'})
+    assert not het
     assert not hom
 
 
@@ -141,7 +150,12 @@ def test_gene_dict(two_trio_variants_vcf):
     gene = ENSG00000075043
     """
     reader = VCFReader(two_trio_variants_vcf)
-    var_dict = gather_gene_dict_from_contig(contig='chr20', variant_sources={'small': reader}, panelapp=FakePanelApp())
+    var_dict = gather_gene_dict_from_contig(
+        contig='chr20',
+        variant_sources={'small': reader},
+        panelapp=FakePanelApp(),
+        ped_samples=set(reader.samples),
+    )
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
@@ -171,7 +185,12 @@ def test_phased_dict(phased_vcf_path):
     gene = ENSG00000075043
     """
     reader = VCFReader(phased_vcf_path)
-    var_dict = gather_gene_dict_from_contig(contig='chr20', variant_sources={'small': reader}, panelapp=FakePanelApp())
+    var_dict = gather_gene_dict_from_contig(
+        contig='chr20',
+        variant_sources={'small': reader},
+        panelapp=FakePanelApp(),
+        ped_samples=set(reader.samples),
+    )
     assert len(var_dict) == ONE_EXPECTED
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
@@ -313,6 +332,6 @@ def test_create_structural_variant_region_category(tmp_path):
         'chr1\t1000\tsv1\tN\t<DEL>\t.\tPASS\tSVLEN=900;gene_id=ENSG1;categorydetailsregulatorycnv=REGION\tGT\t0/1\n',
     )
     reader = VCFReader(str(vcf))
-    region_row, gene_row = (create_structural_variant(var, reader.samples) for var in reader)
+    region_row, gene_row = (create_structural_variant(var, reader.samples, set(reader.samples)) for var in reader)
     assert region_row.category_values('sam1') == {'PanelApp Aus Regulatory Region'}
     assert gene_row.category_values('sam1') == set()

@@ -471,6 +471,10 @@ def main(
         # slim down the pedigree to only samples we have in the pedigrees
         ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
 
+        # if participants were found in the variant data, but not in the pedigree, warn
+        if missing := all_samples - ped.get_all_sample_ids():
+            logger.warning(f'{len(missing)} samples in variant data but not in Pedigree, ignoring: {missing}')
+
         # reduce cohort to singletons, if the config says so
         if config_retrieve('singletons', False):
             logger.info('Reducing pedigree to affected singletons only')
@@ -480,6 +484,8 @@ def main(
         # set up the inheritance checks
         moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
 
+        ped_samples = ped.get_all_sample_ids()
+
         # obtain a set of all contigs with variants
         for contig in canonical_contigs_from_vcf(vcf_opened):
             # assemble {gene: [var1, var2, ..]}
@@ -487,6 +493,7 @@ def main(
                 contig=contig,
                 variant_sources=source_vcfs,
                 panelapp=panelapp,
+                ped_samples=ped_samples,
             )
 
             result_list.extend(
