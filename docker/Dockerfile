@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bzip2 \
         ca-certificates \
+        git \
         gnupg \
         libbz2-1.0 \
         libcurl4 \
