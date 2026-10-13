@@ -616,7 +616,7 @@
                 }
                 var region = variantData.info.panelapp_region;
                 if (region) {
-                    html += 'PanelApp Region: ' + escapeHtml(region.name) + ' - ' + escapeHtml(region.verbose_name) + '<br>';
+                    html += 'PanelApp Region: ' + escapeHtml(region.name) + '<br>';
                     html += 'Region Location: chr' + escapeHtml(region.chrom) + ':' + region.start + '-' + region.end + '<br>';
                     html += 'Region Type: ' + escapeHtml(region.variant_type) + ', ' + region.required_overlap + '% reciprocal overlap required<br>';
                     html += 'Observed Overlap: ' + region.region_overlap + '% of region, ' + region.cnv_overlap + '% of CNV<br>';
