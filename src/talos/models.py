@@ -77,7 +77,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'bnd': 'Exonic BND',
     'exomiser': 'Exomiser',
     'str': 'ShortTandemRepeat',
-    'regulatorycnv': 'PanelApp Regulatory Region',
+    'regulatorycnv': 'PanelApp Aus Regulatory Region',
 }
 
 CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
@@ -497,7 +497,7 @@ class RegionDetail(BaseModel):
     end: int = Field(default_factory=int)
     # cnv_loss, cnv_gain, or cnv_both
     variant_type: str = Field(default_factory=str)
-    # % reciprocal overlap required between this region and a CNV for a match
+    # % region overlap required for a CNV to match
     required_overlap: int = Field(default_factory=int)
     moi: str = Field(default_factory=str)
     panels: set[int] = Field(default_factory=set)

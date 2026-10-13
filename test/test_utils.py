@@ -314,5 +314,5 @@ def test_create_structural_variant_region_category(tmp_path):
     )
     reader = VCFReader(str(vcf))
     region_row, gene_row = (create_structural_variant(var, reader.samples) for var in reader)
-    assert region_row.category_values('sam1') == {'PanelApp CNV Region'}
+    assert region_row.category_values('sam1') == {'PanelApp Aus Regulatory Region'}
     assert gene_row.category_values('sam1') == set()

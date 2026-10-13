@@ -648,7 +648,7 @@ class Variant:
                 gene_panelapp_entry = html_builder.panelapp.regions[gene_id]
                 # carried in the variant data, for display in the expanded row details
                 self.var_data.info['panelapp_region'] = gene_panelapp_entry.model_dump(mode='json')
-                # observed reciprocal overlap, calculated as in RunHailFilteringSv
+                # observed overlap, calculated as in RunHailFilteringSv
                 cnv_start, cnv_end = self.var_data.coordinates.pos, int(self.var_data.info['end'])
                 region = gene_panelapp_entry
                 overlap = min(cnv_end, region.end) - max(cnv_start, region.start)

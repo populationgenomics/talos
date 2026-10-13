@@ -9,7 +9,7 @@ CategoryBooleanSV1:
 
 CategoryDetailsRegulatoryCNV:
 - rare
-- CNV of the same type (loss/gain) as a PanelApp region, with reciprocal overlap of at least the required %
+- CNV of the same type (loss/gain) as a PanelApp region, with feature overlap of at least the required %
 """
 
 from argparse import ArgumentParser
@@ -36,7 +36,7 @@ GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnoma
 REGION_SVTYPES = {'cnv_loss': ['DEL'], 'cnv_gain': ['DUP'], 'cnv_both': ['DEL', 'DUP']}
 REGION_DTYPE = hl.tarray(
     hl.tstruct(
-        name=hl.tstr, chrom=hl.tstr, start=hl.tint64, end=hl.tint64, svtypes=hl.tarray(hl.tstr), overlap=hl.tint64
+        name=hl.tstr, chrom=hl.tstr, start=hl.tint64, end=hl.tint64, svtypes=hl.tarray(hl.tstr), min_overlap=hl.tint64
     ),
 )
 
@@ -144,7 +144,7 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
 
 def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.MatrixTable:
     """
-    Find CNVs matching a PanelApp region, with reciprocal overlap of at least the region's required %
+    Find CNVs matching a PanelApp region, with region overlap of at least the region's required %
     Matched region names are recorded in categorydetailsregulatorycnv, and added to gene_id so they survive the explode
 
     Args:
@@ -162,24 +162,22 @@ def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.Matri
                 'start': region.start,
                 'end': region.end,
                 'svtypes': REGION_SVTYPES[region.variant_type],
-                'overlap': region.required_overlap,
+                # minimum overlap in bp, rounded up so the required % is always met
+                'min_overlap': (region.required_overlap * (region.end - region.start) + 99) // 100,
             }
             for region in panelapp.regions.values()
         ],
         dtype=REGION_DTYPE,
     )
 
-    def reciprocal_match(region: hl.StructExpression) -> hl.BooleanExpression:
-        # the overlap must be at least the required % of both the region and the CNV, integer maths avoids rounding
-        overlap = (hl.min(mt.info.end, region.end) - hl.max(mt.locus.position, region.start)) * 100
+    def region_match(region: hl.StructExpression) -> hl.BooleanExpression:
         return (
             (region.chrom == mt.locus.contig)
             & region.svtypes.contains(mt.info.svtype)
-            & (overlap >= region.overlap * (region.end - region.start))
-            & (overlap >= region.overlap * (mt.info.end - mt.locus.position))
+            & (hl.min(mt.info.end, region.end) - hl.max(mt.locus.position, region.start) >= region.min_overlap)
         )
 
-    matched = regions.filter(reciprocal_match).map(lambda region: region.name)
+    matched = regions.filter(region_match).map(lambda region: region.name)
 
     return mt.annotate_rows(
         info=mt.info.annotate(
