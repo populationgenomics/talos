@@ -33,6 +33,7 @@ SAMPLES = ['proband', 'father', 'mother']
 HEADER = """\
 ##fileformat=VCFv4.2
 ##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr2,length=242193529>
 ##ALT=<ID=DEL,Description="Deletion">
 ##ALT=<ID=DUP,Description="Duplication">
 ##ALT=<ID=INS,Description="Insertion">
@@ -68,6 +69,7 @@ class SV:
     """one symbolic SV record: its coordinates, the trio's genotypes, and its joint-call frequency"""
 
     identifier: str
+    chrom: str
     pos: int
     end: int
     svtype: str
@@ -105,7 +107,7 @@ class SV:
     def as_row(self) -> str:
         """render as a VCF data line"""
         alt = self.alt or f'<{self.svtype}>'
-        columns = ['chr1', self.pos, self.identifier, 'N', alt, '.', 'PASS', self.info(), 'GT', *self.genotypes]
+        columns = [self.chrom, self.pos, self.identifier, 'N', alt, '.', 'PASS', self.info(), 'GT', *self.genotypes]
         return '\t'.join(str(column) for column in columns)
 
 
@@ -116,45 +118,34 @@ VARIANTS = [
     # spurious Best_gnomAD_ID the rename has to withhold. Rare in gnomAD and rare in the callset, so this is
     # the one variant expected to survive to the report as CategoryBooleanSV1
     # --- this was correctly detected as Cat. SV1, but the gene is Biallelic.
-    SV('lof_del_padi6', 17372196, 17401699, 'DEL', 29503, ['1/1', '0/0', '0/0'], callset_af=0.001),
-    # the PanelApp CNV region positive control. PanelApp region ISCA-37493-Loss (1q43q44 microdeletion syndrome,
-    # chr1:243124428-245154985, cnv_loss, 80% required overlap, monoallelic) is on panel 3443, forced in
-    # nextflow/inputs/config.toml. This de novo DEL covers 97.5% of the region and the region covers 100% of it,
-    # clearing the 80% reciprocal overlap, so it is expected in the report as CategoryDetailsRegulatoryCNV under
-    # Autosomal Dominant. In gnomAD it matches GD_1q43-q44__DEL (BED 1:243124427-245154985) at AF 8e-06, and must
-    # NOT inherit AF 0.5 from gnomAD-SV_v3_DEL_chr1_7548ba6e (7.4Mb, reciprocal overlap ~0.27, below -f 0.5)
-    SV('region_del_1q43q44', 243150001, 245130000, 'DEL', 1979999, ['0/1', '0/0', '0/0'], callset_af=0.001),
-    # the region negative control: identical coordinates, genotypes and frequency, but a DUP. ISCA-37493 is only
-    # listed as a Loss, so the type check must reject it despite the 97.5%/100% overlap. Every gnomAD DUP here is
-    # rare (max AF 1.9e-04), and a whole-gene DUP gets no PREDICTED_LOF, so the type check is the only thing
-    # standing between this and the report - it should be dropped by run_hail_filtering_sv's LOF/BND/region filter
-    SV('region_dup_1q43q44', 243150001, 245130000, 'DUP', 1979999, ['0/1', '0/0', '0/0'], callset_af=0.001),
+    SV('lof_del_padi6', 'chr1', 17372196, 17401699, 'DEL', 29503, ['1/1', '0/0', '0/0'], callset_af=0.001),
     # matches gnomAD-SV_v3_DEL_chr1_143f6519 (BED 1:509967-690000) exactly, AF 0.2238. It carries
     # PREDICTED_LOF=OR4F16, so it survives the LoF filter and has to be dropped on gnomAD frequency by
     # filter_matrix_by_af - it is rare in the callset, so nothing else can catch it
-    SV('common_del', 509968, 690000, 'DEL', 180032, ['0/1', '0/1', '0/0'], callset_af=0.001),
+    SV('common_del', 'chr1', 509968, 690000, 'DEL', 180032, ['0/1', '0/1', '0/0'], callset_af=0.001),
     # the mirror image: matches gnomAD-SV_v3_INV_chr1_b34a7097 (BED 1:1171037-1205428) at AF 8e-06, so it is
     # vanishingly rare in gnomAD, but common in the joint call. It carries PREDICTED_LOF=TNFRSF18, another
     # PanelApp gene, so only filter_matrix_by_ac can drop it
-    SV('inv_common_in_callset', 1171038, 1205428, 'INV', 34390, ['0/1', '0/0', '0/0'], callset_af=0.2),
+    SV('inv_common_in_callset', 'chr1', 1171038, 1205428, 'INV', 34390, ['0/1', '0/0', '0/0'], callset_af=0.2),
     # a 200bp deletion buried inside that same 180kb gnomAD DEL. Reciprocal overlap is ~0.001, so it must NOT
     # inherit the AF - and its Best_gnomAD_ID must be withheld by the rename's gnomAD_Count gate. This is the
     # case a mis-set -f would break
-    SV('small_del_in_large', 600001, 600200, 'DEL', 200, ['0/1', '0/0', '0/0'], callset_af=0.001),
+    SV('small_del_in_large', 'chr1', 600001, 600200, 'DEL', 200, ['0/1', '0/0', '0/0'], callset_af=0.001),
     # overlaps four gnomAD duplications with very different frequencies, the extremes being
     # gnomAD-SV_v3_DUP_chr1_eb9a525a (AF 0.704) and gnomAD-SV_v3_DUP_chr1_34304cb4 (AF 8e-06).
     # Max_AF must take the highest, which is what makes it the conservative choice
-    SV('dup_two_matches', 21489967, 21494856, 'DUP', 4889, ['0/1', '0/0', '0/1'], callset_af=0.001),
+    SV('dup_two_matches', 'chr1', 21489967, 21494856, 'DUP', 4889, ['0/1', '0/0', '0/1'], callset_af=0.001),
     # wholly inside GJA9 (chr1:38874069-38881587) and covering its first exon, so it annotates as
     # PREDICTED_INTRAGENIC_EXON_DUP and never acquires a PREDICTED_LOF
-    SV('intragenic_dup_gja9', 38874500, 38876500, 'DUP', 2001, ['0/1', '0/1', '0/0'], callset_af=0.001),
+    SV('intragenic_dup_gja9', 'chr1', 38874500, 38876500, 'DUP', 2001, ['0/1', '0/1', '0/0'], callset_af=0.001),
     # an insertion where END == POS, which is how callers emit them and which --ins exists to handle. It
     # matches gnomAD-SV_v3_INS_chr1_3f94b1dc, proving the expansion works
-    SV('ins_end_eq_pos', 66340, 66340, 'INS', 161, ['0/1', '0/0', '0/1'], callset_af=0.001),
+    SV('ins_end_eq_pos', 'chr1', 66340, 66340, 'INS', 161, ['0/1', '0/0', '0/1'], callset_af=0.001),
     # a breakend. SVAnnotate never assigns PREDICTED_LOF to a BND - this one lands intronic in PADI6 and
     # exonic in GJA9 - so it is dropped by run_hail_filtering_sv before any frequency filter is consulted.
     SV(
         'bnd_1',
+        'chr1',
         17390000,
         17390001,
         'BND',
@@ -164,6 +155,11 @@ VARIANTS = [
         alt='N]chr1:38875000]',
         extra_info={'CHR2': 'chr1', 'END2': '38875000'},
     ),
+    # the PanelApp regulatory region positive control. PanelApp region "IHH upstream regulatory region"
+    # cnv_gain, 70% required overlap, monoallelic) is on panel 93, forced in nextflow/inputs/config.toml
+    SV('region_dup_IHH', 'chr2', 219109600, 219115111, 'DUP', 5511, ['0/1', '0/0', '0/0'], callset_af=0.001),
+    # the region negative control: identical coordinates, genotypes and frequency, but a DEL.
+    SV('region_del_IHH', 'chr2', 219109600, 219115111, 'DEL', 5511, ['0/1', '0/0', '0/0'], callset_af=0.001),
 ]
 
 

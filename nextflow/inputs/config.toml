@@ -5,7 +5,7 @@ require_pheno_match = [ "FLG", "GJB2", "F2", "F5", "HFE"]
 within_x_months = 24
 forbidden_genes = []
 # 3443 (Common deletion and duplication syndromes) carries the 1q43q44 region the SV test data deletes
-forced_panels = [ 144, 239, 3443]
+forced_panels = [ 144, 239, 93]
 
 # confidence level - set this to a lower value to allow non-green PanelApp genes into the analysis
 # 3 = Green only

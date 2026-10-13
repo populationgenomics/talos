@@ -295,6 +295,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
                     'required_overlap': int(region['required_overlap_percentage']),
                     'moi': region.get('mode_of_inheritance', 'unknown').lower(),
                     'confidence_level': int(region['confidence_level']),
+                    'tags': region.get('tags') or [],
                 }
             )
 
@@ -458,9 +459,12 @@ def main(output: str):
                     },
                 )
 
-        # get the CNV region content from the raw data
+        # get the region content from the raw data
         # shortcut: first-seen coordinates win if a region name differs between panels, fix at source in PanelApp
         for region_data in panel_data.get('regions', []):
+            # only currently interested in regulatory regions
+            if 'regulatory region' not in region_data.get('tags', []):
+                continue
             panel_entry = DownloadedPanelAppPanel(moi=region_data['moi'], confidence=region_data['confidence_level'])
             if prev_region_data := collected_panel_data.regions.get(region_data['name']):
                 prev_region_data.panels[panel_id] = panel_entry
@@ -474,6 +478,7 @@ def main(output: str):
                     variant_type=region_data['variant_type'],
                     required_overlap=region_data['required_overlap'],
                     panels={panel_id: panel_entry},
+                    tags=region_data['tags'],
                 )
 
     # strip out any panels with no genes or regions on, so they're not considered for HPO matches

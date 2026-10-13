@@ -115,6 +115,7 @@ def test_region_panel():
             'required_overlap': 80,
             'moi': 'monoallelic',
             'confidence_level': 3,
+            'tags': [],
         },
     ]
 
