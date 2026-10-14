@@ -22,6 +22,7 @@ Save ALL this data:
 - for each gene, collect the IDs of the panels it appears on, and the date it was first graded green
 
 STR-specific feature - parses the PanelApp Repeat Disorders panel
+Region-specific feature - parses CNV regions (loss/gain) from each panel
 """
 
 import asyncio
@@ -39,6 +40,7 @@ from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
     DownloadedPanelAppPanel,
+    DownloadedPanelAppRegion,
     DownloadedPanelAppStr,
     HpoTerm,
     PanelShort,
@@ -65,6 +67,7 @@ PANEL_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
 MITO_BAD = 'MT'
 MITO_GOOD = 'M'
+CNV_REGION_TYPES = {'cnv_loss', 'cnv_gain', 'cnv_both'}
 
 
 def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[HpoTerm]]:
@@ -221,6 +224,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
     panel_url = PANEL_TEMPLATE_URL.format(id=panel_id)
     gene_results: list[dict] = []
     str_results: list[dict] = []
+    region_results: list[dict] = []
 
     async with session.get(panel_url) as resp:
         response = await resp.json()
@@ -274,7 +278,36 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
                 }
             )
 
-    return {panel_id: {'name': panel_name, 'version': panel_version, 'genes': gene_results, 'strs': str_results}}
+        for region in response.get('regions', []):
+            # only CNV regions with GRCh38 coordinates are usable
+            if region['type_of_variants'] not in CNV_REGION_TYPES or not region['grch38_coordinates']:
+                continue
+
+            start, end = region['grch38_coordinates']
+            region_results.append(
+                {
+                    'name': region['entity_name'],
+                    'verbose_name': region['verbose_name'],
+                    'chrom': region['chromosome'],
+                    'start': int(start),
+                    'end': int(end),
+                    'variant_type': region['type_of_variants'],
+                    'required_overlap': int(region['required_overlap_percentage']),
+                    'moi': region.get('mode_of_inheritance', 'unknown').lower(),
+                    'confidence_level': int(region['confidence_level']),
+                    'tags': region.get('tags') or [],
+                }
+            )
+
+    return {
+        panel_id: {
+            'name': panel_name,
+            'version': panel_version,
+            'genes': gene_results,
+            'strs': str_results,
+            'regions': region_results,
+        },
+    }
 
 
 async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: int) -> dict:
@@ -350,8 +383,9 @@ def main(output: str):
 
     # iterate over the gathered panels
     for panel_id, panel_data in all_panel_data.items():
-        if not panel_data['genes']:
-            logger.warning(f'No Genes on panel {panel_id}')
+        # region-only panels (e.g. common deletion/duplication syndromes) are retained
+        if not (panel_data['genes'] or panel_data['regions'] or panel_data['strs']):
+            logger.warning(f'No Genes or Regions on panel {panel_id}')
             zero_green_panels.append(panel_id)
             continue
 
@@ -425,9 +459,31 @@ def main(output: str):
                     },
                 )
 
-    # strip out any panels with no green genes on, so they're not considered for HPO matches
+        # get the region content from the raw data
+        # shortcut: first-seen coordinates win if a region name differs between panels, fix at source in PanelApp
+        for region_data in panel_data.get('regions', []):
+            # only currently interested in regulatory regions
+            if 'regulatory region' not in region_data.get('tags', []):
+                continue
+            panel_entry = DownloadedPanelAppPanel(moi=region_data['moi'], confidence=region_data['confidence_level'])
+            if prev_region_data := collected_panel_data.regions.get(region_data['name']):
+                prev_region_data.panels[panel_id] = panel_entry
+            else:
+                collected_panel_data.regions[region_data['name']] = DownloadedPanelAppRegion(
+                    name=region_data['name'],
+                    verbose_name=region_data['verbose_name'],
+                    chrom=region_data['chrom'],
+                    start=region_data['start'],
+                    end=region_data['end'],
+                    variant_type=region_data['variant_type'],
+                    required_overlap=region_data['required_overlap'],
+                    panels={panel_id: panel_entry},
+                    tags=region_data['tags'],
+                )
+
+    # strip out any panels with no genes or regions on, so they're not considered for HPO matches
     for panel_id in zero_green_panels:
-        logger.info(f'Removing panel {panel_id} from hpo matching - no green genes')
+        logger.info(f'Removing panel {panel_id} from hpo matching - no genes or regions')
         del collected_panel_data.hpos[panel_id]
 
     with open(output, 'w') as output_file:

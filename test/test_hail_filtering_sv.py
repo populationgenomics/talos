@@ -7,7 +7,9 @@ They cover the field rearrangement, the two blanket frequency filters, and the h
 
 import hail as hl
 
+from talos.models import PanelApp, RegionDetail
 from talos.run_hail_filtering_sv import (
+    annotate_region_overlaps,
     filter_matrix_by_ac,
     filter_matrix_by_af,
     fix_hemi_calls,
@@ -158,3 +160,49 @@ def test_fix_hemi_calls_diploidises_haploid_genotypes():
     assert by_idx[0].dip and by_idx[0].n_alt == 2  # 1 -> 1/1
     assert by_idx[1].dip and by_idx[1].n_alt == 0  # 0 -> 0/0
     assert by_idx[2].dip and by_idx[2].n_alt == 1  # 0/1 unchanged
+
+
+def test_annotate_region_overlaps():
+    """a CNV matches a region if the type matches, and it overlaps the required % of the region or is fully inside it"""
+    panelapp = PanelApp(
+        regions={
+            'LOSS': RegionDetail(
+                name='LOSS', chrom='1', start=1000, end=2000, variant_type='cnv_loss', required_overlap=80
+            ),
+            'BOTH': RegionDetail(
+                name='BOTH', chrom='1', start=1000, end=2000, variant_type='cnv_both', required_overlap=50
+            ),
+        },
+    )
+    # each SV is start, end, svtype
+    # DEL 90% of region, 100% of CNV -> both
+    # DEL 100% of region, only 50% of CNV -> both, CNV size doesn't matter
+    # DEL 70% of region, hanging off the start -> BOTH only, too small for LOSS's 80%
+    # DEL 10% of region, fully inside it -> both, containment ignores the required %
+    # DUP 90% of region -> BOTH only, wrong type for LOSS
+    # DEL on another position -> none
+    svs = [
+        (1000, 1900, 'DEL'),
+        (1000, 3000, 'DEL'),
+        (300, 1700, 'DEL'),
+        (1400, 1500, 'DEL'),
+        (1100, 2000, 'DUP'),
+        (5000, 6000, 'DEL'),
+    ]
+    mt = hl.utils.range_matrix_table(n_rows=len(svs), n_cols=1)
+    sv = hl.literal(svs)[mt.row_idx]
+    mt = mt.annotate_rows(
+        locus=hl.locus('chr1', sv[0], reference_genome='GRCh38'),
+        info=hl.struct(end=sv[1], svtype=sv[2], gene_id=hl.empty_set(hl.tstr)),
+    )
+    rows = annotate_region_overlaps(mt, panelapp).rows().collect()
+
+    assert [set(row.info.categorydetailsregulatorycnv.split('+')) for row in rows] == [
+        {'LOSS', 'BOTH'},
+        {'LOSS', 'BOTH'},
+        {'BOTH'},
+        {'LOSS', 'BOTH'},
+        {'BOTH'},
+        {'missing'},
+    ]
+    assert rows[0].info.gene_id == {'LOSS', 'BOTH'}

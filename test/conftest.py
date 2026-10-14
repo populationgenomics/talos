@@ -229,7 +229,7 @@ def fixture_phased_trio_variants():
     """path to the phased trio VCF"""
 
     vcf_reader = VCFReader(PHASED_TRIO)
-    return [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
+    return [create_small_variant(var, vcf_reader.samples, set(vcf_reader.samples)) for var in vcf_reader]
 
 
 @pytest.fixture(name='trio_ped')
@@ -255,7 +255,7 @@ def fixture_trio_abs_variant():
     vcf_reader = VCFReader(LABELLED)
     cyvcf_var = next(vcf_reader)
 
-    return create_small_variant(cyvcf_var, vcf_reader.samples)
+    return create_small_variant(cyvcf_var, vcf_reader.samples, set(vcf_reader.samples))
 
 
 @pytest.fixture(name='cyvcf_example_variant')
@@ -276,7 +276,7 @@ def fixture_two_trio_abs_variants():
     2) Cat. 1 + 3, and Cat. 4 for PROBAND only
     """
     vcf_reader = VCFReader(LABELLED)
-    return [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
+    return [create_small_variant(var, vcf_reader.samples, set(vcf_reader.samples)) for var in vcf_reader]
 
 
 @pytest.fixture(name='two_trio_variants_vcf')

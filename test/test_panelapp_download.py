@@ -82,6 +82,44 @@ def test_str_panel(str_payload):
     ]
 
 
+def test_region_panel():
+    """CNV regions are parsed, non-CNV or coordinate-less regions are skipped"""
+    region = {
+        'entity_name': 'ISCA-1-Loss',
+        'verbose_name': 'a deletion syndrome',
+        'chromosome': '17',
+        'grch38_coordinates': [1000, 2000],
+        'type_of_variants': 'cnv_loss',
+        'required_overlap_percentage': 80,
+        'mode_of_inheritance': 'MONOALLELIC',
+        'confidence_level': '3',
+    }
+    payload = {
+        'name': 'Regions',
+        'version': 1,
+        'regions': [
+            region,
+            region | {'entity_name': 'small', 'type_of_variants': 'small'},
+            region | {'entity_name': 'no_coords', 'grch38_coordinates': None},
+        ],
+    }
+    result, _session = run_get_single_panel(payload)
+    assert result[137]['regions'] == [
+        {
+            'name': 'ISCA-1-Loss',
+            'verbose_name': 'a deletion syndrome',
+            'chrom': '17',
+            'start': 1000,
+            'end': 2000,
+            'variant_type': 'cnv_loss',
+            'required_overlap': 80,
+            'moi': 'monoallelic',
+            'confidence_level': 3,
+            'tags': [],
+        },
+    ]
+
+
 def test_panel_hpo_query(httpx_mock, panels_and_hpos):
     """check that the default parsing delivers correct data"""
 

@@ -8,6 +8,7 @@ from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
     DownloadedPanelAppPanel,
+    DownloadedPanelAppRegion,
     GeneDetail,
     HpoTerm,
     PanelApp,
@@ -117,6 +118,7 @@ def test_match_participants_to_panels():
         },
         'version': CURRENT_VERSION,
         'strs': {},
+        'regions': {},
     }
 
 
@@ -234,3 +236,31 @@ def test_fetch_genes_for_panels_includes_amber_when_threshold_lowered():
     assert 'GREEN' in papp.genes
     assert 'AMBER' in papp.genes
     assert 'RED' not in papp.genes
+
+
+def test_fetch_genes_for_panels_includes_regions():
+    """regions on an analysed panel are carried through, with a consensus MOI"""
+    cached = DownloadedPanelApp(
+        regions={
+            'REGION': DownloadedPanelAppRegion(
+                name='REGION',
+                chrom='17',
+                start=1000,
+                end=2000,
+                variant_type='cnv_loss',
+                required_overlap=80,
+                panels={
+                    137: DownloadedPanelAppPanel(moi='monoallelic', confidence=3),
+                    999: DownloadedPanelAppPanel(moi='biallelic', confidence=3),
+                },
+            ),
+        },
+    )
+    papp = PanelApp(participants={'S1': ParticipantHPOPanels(panels={137})})
+
+    fetch_genes_for_panels(panelapp_data=papp, cached_panelapp=cached)
+
+    region = papp.regions['REGION']
+    assert region.moi == 'Monoallelic'
+    assert region.panels == {137}
+    assert (region.start, region.end, region.variant_type, region.required_overlap) == (1000, 2000, 'cnv_loss', 80)

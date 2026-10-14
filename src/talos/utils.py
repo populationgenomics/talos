@@ -471,6 +471,7 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
 def create_str_variant(
     var: 'cyvcf2.Variant',
     samples: list[str],
+    ped_samples: set[str],
 ) -> ShortTandemRepeat | None:
     """Takes a variant row from an STR 'joint-call', and parses into a Variant object."""
 
@@ -490,7 +491,7 @@ def create_str_variant(
     # shuffle the gene ID (ENSG) to match the location Hail classifiers put it
     info['gene_id'] = info.pop('gene')
 
-    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
+    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
 
     # no samples with an STR call, reject the whole variant row
     if not (het_samples or hom_samples):
@@ -526,13 +527,14 @@ def create_str_variant(
 def create_small_variant(
     var: 'cyvcf2.Variant',
     samples: list[str],
+    ped_samples: set[str],
 ) -> SmallVariant | None:
     """Takes a small variant and creates a Model from it."""
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': coordinates.string_format}
 
-    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
+    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
 
     # organise PM5
     organise_pm5(info)
@@ -617,7 +619,7 @@ def create_small_variant(
     )
 
 
-def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]) -> StructuralVariant:
+def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str], ped_samples: set[str]) -> StructuralVariant:
     """
     takes an SV and creates a Model from it
     far less complicated than the SmallVariant model
@@ -625,6 +627,7 @@ def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]) -> Stru
     Args:
         var ():
         samples ():
+        ped_samples (set[str]): all sample IDs present in the Pedigree
     """
 
     # variant link for SVs is the RSID value
@@ -636,7 +639,11 @@ def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]) -> Stru
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.ALT[0], alt=str(info['svlen']))
 
-    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
+    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
+
+    # region matches are recorded on every exploded row, only apply the category to the row for that region
+    if info['gene_id'] in info.get('categorydetailsregulatorycnv', 'missing').split('+'):
+        info['categorybooleanregulatorycnv'] = 1
 
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
@@ -683,6 +690,7 @@ def gather_gene_dict_from_contig(
     contig: str,
     variant_sources: dict[str, 'cyvcf2.VCFReader'],
     panelapp: PanelApp,
+    ped_samples: set[str],
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -695,6 +703,7 @@ def gather_gene_dict_from_contig(
         variant_sources (): dict mapping each variant type to a VCF reader instance
                             known types: small, sv, mito (chrM only), str
         panelapp (PanelApp): PanelApp details parsed for this run
+        ped_samples (set[str]): set of samples present in the Pedigree
 
     Returns:
         A lookup in the form
@@ -720,7 +729,7 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     small_samples = variant_sources['small'].samples
     for variant in variant_sources['small'](contig):
-        if (small_variant := create_small_variant(var=variant, samples=small_samples)) is None:
+        if (small_variant := create_small_variant(var=variant, samples=small_samples, ped_samples=ped_samples)) is None:
             continue
 
         if small_variant.coordinates.string_format in blacklist:
@@ -734,7 +743,7 @@ def gather_gene_dict_from_contig(
         sv_samples = variant_sources['sv'].samples
         structural_variants = 0
         for variant in variant_sources['sv'](contig):
-            structural_variant = create_structural_variant(var=variant, samples=sv_samples)
+            structural_variant = create_structural_variant(var=variant, samples=sv_samples, ped_samples=ped_samples)
             structural_variants += 1
             contig_dict[structural_variant.info['gene_id']].append(structural_variant)
         logger.info(f'Contig {contig} contained {structural_variants} SVs')
@@ -745,7 +754,7 @@ def gather_gene_dict_from_contig(
         str_samples = variant_sources['str'].samples
         str_variants = 0
         for variant in variant_sources['str'](contig):
-            if str_var := create_str_variant(var=variant, samples=str_samples):
+            if str_var := create_str_variant(var=variant, samples=str_samples, ped_samples=ped_samples):
                 # skip any which aren't accepted in PanelApp's repeat disorders panel
                 if str_var.info['gene_id'] not in panelapp.strs:
                     continue
@@ -760,7 +769,7 @@ def gather_gene_dict_from_contig(
         mito_samples = variant_sources['mito'].samples
         mito_variants = 0
         for variant in variant_sources['mito'](contig):
-            if mito_var := create_small_variant(var=variant, samples=mito_samples):
+            if mito_var := create_small_variant(var=variant, samples=mito_samples, ped_samples=ped_samples):
                 mito_variants += 1
                 contig_dict[mito_var.info['gene_id']].append(mito_var)
 
@@ -806,7 +815,11 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
         return json_data
 
 
-def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[set[str], set[str]]:
+def get_non_ref_samples(
+    variant: 'cyvcf2.Variant',
+    samples: list[str],
+    ped_samples: set[str],
+) -> tuple[set[str], set[str]]:
     """
     For this variant, find all samples with a call. cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT.
     Returns 2 sets of strings; het sample ID, hom sample IDs
@@ -816,6 +829,10 @@ def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[
 
     # this iteration is based on the cyvcf2 representations
     for sam, genotype_int in zip(samples, variant.gt_types, strict=True):
+        # remove any participants we don't have pedigree data for
+        if sam not in ped_samples:
+            continue
+
         if genotype_int in BAD_GENOTYPES:
             continue
         if genotype_int == HETALT:

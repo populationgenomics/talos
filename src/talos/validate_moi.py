@@ -28,6 +28,7 @@ from talos.models import (
     ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
+    RegionDetail,
     ReportPanel,
     ReportVariant,
     ResultData,
@@ -88,8 +89,9 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 
     moi_dictionary = {}
 
-    # iterate over all genes
-    for gene_data in panelapp_data.genes.values():
+    # iterate over all genes and regions
+    for gene_data in [*panelapp_data.genes.values(), *panelapp_data.regions.values()]:
+        assert isinstance(gene_data, (RegionDetail, GeneDetail))
         # extract the per-gene MOI, don't re-simplify
         gene_moi = gene_data.moi
 
@@ -104,7 +106,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
-    panelapp_data: dict[str, GeneDetail],
+    panelapp_data: dict[str, GeneDetail | RegionDetail],
     pedigree: PedigreeParser,
 ) -> list[ReportVariant]:
     """
@@ -114,7 +116,7 @@ def apply_moi_to_variants(
     Args:
         variant_dict (dict): all possible variants, lists indexed by gene
         moi_lookup (dict): the MOI model runner per MOI string
-        panelapp_data (dict): all genes and relevant details
+        panelapp_data (dict): all genes and regions, and relevant details
         pedigree (PedigreeParser): the pedigree for this cohort
     """
 
@@ -206,6 +208,8 @@ def filter_results_to_panels(
         # pick panels appropriately depending on the entity type.
         if isinstance(each_event.var_data, ShortTandemRepeat):
             panelapp_content = panelapp.strs[each_event.gene]
+        elif each_event.gene in panelapp.regions:
+            panelapp_content = panelapp.regions[each_event.gene]
         else:
             panelapp_content = panelapp.genes[each_event.gene]
 
@@ -467,6 +471,10 @@ def main(
         # slim down the pedigree to only samples we have in the pedigrees
         ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
 
+        # if participants were found in the variant data, but not in the pedigree, warn
+        if missing := all_samples - ped.get_all_sample_ids():
+            logger.warning(f'{len(missing)} samples in variant data but not in Pedigree, ignoring: {missing}')
+
         # reduce cohort to singletons, if the config says so
         if config_retrieve('singletons', False):
             logger.info('Reducing pedigree to affected singletons only')
@@ -476,6 +484,8 @@ def main(
         # set up the inheritance checks
         moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
 
+        ped_samples = ped.get_all_sample_ids()
+
         # obtain a set of all contigs with variants
         for contig in canonical_contigs_from_vcf(vcf_opened):
             # assemble {gene: [var1, var2, ..]}
@@ -483,13 +493,14 @@ def main(
                 contig=contig,
                 variant_sources=source_vcfs,
                 panelapp=panelapp,
+                ped_samples=ped_samples,
             )
 
             result_list.extend(
                 apply_moi_to_variants(
                     variant_dict=contig_dict,
                     moi_lookup=moi_lookup,
-                    panelapp_data=panelapp.genes,
+                    panelapp_data=panelapp.genes | panelapp.regions,
                     pedigree=ped,
                 ),
             )

@@ -77,6 +77,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'bnd': 'Exonic BND',
     'exomiser': 'Exomiser',
     'str': 'ShortTandemRepeat',
+    'regulatorycnv': 'PanelApp Aus Regulatory Region',
 }
 
 CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
@@ -484,6 +485,25 @@ class StrDetail(BaseModel):
     panel_confidences: dict[int, int] = Field(default_factory=dict)
 
 
+class RegionDetail(BaseModel):
+    """
+    A CNV region from PanelApp, combining all MOI and panel IDs
+    """
+
+    name: str
+    verbose_name: str = Field(default_factory=str)
+    chrom: str = Field(default_factory=str)
+    start: int = Field(default_factory=int)
+    end: int = Field(default_factory=int)
+    # cnv_loss, cnv_gain, or cnv_both
+    variant_type: str = Field(default_factory=str)
+    # % region overlap required for a CNV to match
+    required_overlap: int = Field(default_factory=int)
+    moi: str = Field(default_factory=str)
+    panels: set[int] = Field(default_factory=set)
+    panel_confidences: dict[int, int] = Field(default_factory=dict)
+
+
 class PanelShort(BaseModel):
     """
     Short panel summary, used in the metadata section
@@ -501,6 +521,7 @@ class PanelApp(BaseModel):
     metadata: dict[int, PanelShort] = Field(default_factory=dict)
     genes: dict[str, GeneDetail] = Field(default_factory=dict)
     strs: dict[str, StrDetail] = Field(default_factory=dict)
+    regions: dict[str, RegionDetail] = Field(default_factory=dict)
     participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     creation_date: str = Field(default=get_granular_date())
@@ -541,6 +562,20 @@ class DownloadedPanelAppStr(BaseModel):
     expansion: bool = Field(default_factory=bool)
 
 
+class DownloadedPanelAppRegion(BaseModel):
+    """ """
+
+    name: str
+    verbose_name: str = Field(default_factory=str)
+    chrom: str = Field(default_factory=str)
+    start: int = Field(default_factory=int)
+    end: int = Field(default_factory=int)
+    variant_type: str = Field(default_factory=str)
+    required_overlap: int = Field(default_factory=int)
+    panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+
+
 class DownloadedPanelApp(BaseModel):
     """ """
 
@@ -548,6 +583,7 @@ class DownloadedPanelApp(BaseModel):
     versions: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
     strs: dict[str, DownloadedPanelAppStr] = Field(default_factory=dict)
+    regions: dict[str, DownloadedPanelAppRegion] = Field(default_factory=dict)
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     date: str = Field(default=get_granular_date())

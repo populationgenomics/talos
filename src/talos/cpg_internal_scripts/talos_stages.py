@@ -538,6 +538,7 @@ class ValidateVariantInheritance(stage.CohortStage):
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type='vcf',
+                sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
                 long_read=config.config_retrieve(['workflow', 'long_read'], False),
                 stage_name='GenerateMitoJointCall',
             )
@@ -554,13 +555,13 @@ class ValidateVariantInheritance(stage.CohortStage):
 
         # is this run going to include STR data?
         str_vcf_arg = ''
-        stripy_vcf = None
         # screen out cohorts/datasets which we don't want to run STRs for
         str_cohort = cohort.dataset.name in config.config_retrieve(['workflow', 'str_cohorts'], [])
         if str_cohort and (
             str_vcf := query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type='vcf',
+                sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
                 long_read=config.config_retrieve(['workflow', 'long_read'], False),
                 stage_name='MakeStripyJointCall',
             )

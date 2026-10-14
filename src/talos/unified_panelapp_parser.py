@@ -24,12 +24,14 @@ from talos.config import config_retrieve
 from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
+    DownloadedPanelAppRegion,
     DownloadedPanelAppStr,
     GeneDetail,
     HpoTerm,
     PanelApp,
     PanelShort,
     ParticipantHPOPanels,
+    RegionDetail,
     StrDetail,
 )
 from talos.utils import read_json_from_path
@@ -268,10 +270,14 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
         full_set_of_panels.update(participant_details.panels)
 
     # now iterate over the entities we know about, and pull them into the panel details object
-    # this iteration is partially shared between genes and STRs
-    for obj_type, obj_collection in [('gene', cached_panelapp.genes.values()), ('str', cached_panelapp.strs.values())]:
+    # this iteration is partially shared between genes, STRs, and regions
+    for obj_type, obj_collection in [
+        ('gene', cached_panelapp.genes.values()),
+        ('str', cached_panelapp.strs.values()),
+        ('region', cached_panelapp.regions.values()),
+    ]:
         for obj_data in obj_collection:
-            assert isinstance(obj_data, (DownloadedPanelAppStr, DownloadedPanelAppGene))
+            assert isinstance(obj_data, (DownloadedPanelAppStr, DownloadedPanelAppGene, DownloadedPanelAppRegion))
             # check if this entity is in any of the panels we are interested in - retain the overlap
             # also enforce the confidence threshold: skip panel associations below the configured level
             eligible_panels = {
@@ -303,6 +309,20 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
                     location=obj_data.location,
                     moi=moi,
                     new=new_panels,
+                    panels=panel_intersection,
+                    panel_confidences={pid: obj_data.panels[pid].confidence for pid in panel_intersection},
+                )
+            elif obj_type == 'region':
+                assert isinstance(obj_data, DownloadedPanelAppRegion)
+                panelapp_data.regions[obj_data.name] = RegionDetail(
+                    name=obj_data.name,
+                    verbose_name=obj_data.verbose_name,
+                    chrom=obj_data.chrom,
+                    start=obj_data.start,
+                    end=obj_data.end,
+                    variant_type=obj_data.variant_type,
+                    required_overlap=obj_data.required_overlap,
+                    moi=moi,
                     panels=panel_intersection,
                     panel_confidences={pid: obj_data.panels[pid].confidence for pid in panel_intersection},
                 )

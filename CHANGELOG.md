@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.3.0] - 2026-10
+
+### Added
+
+* New SV category, aimed at matching CNVs to PanelApp's regulatory regions
+* These are interpreted separately from other Genes, SVs, and STRs
+* A match is made when a CNV overlaps a region by a minimum of x%, and is DUP/DEL matched
+
 [12.2.1] - 2026-10
 
 ### Changed

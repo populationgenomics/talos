@@ -6,6 +6,10 @@ This expects data annotated by GATK's SVAnnotate tool
 CategoryBooleanSV1:
 - rare
 - predicted LoF in a listed gene
+
+CategoryDetailsRegulatoryCNV:
+- rare
+- CNV of the same type (loss/gain) as a PanelApp region, with feature overlap of at least the required %
 """
 
 from argparse import ArgumentParser
@@ -17,10 +21,24 @@ import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.run_hail_filtering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
+from talos.run_hail_filtering import (
+    MISSING_INT,
+    MISSING_STRING,
+    ONE_INT,
+    green_from_panelapp,
+    subselect_mt_to_pedigree,
+)
 from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
+
+# PanelApp region variant types, and the SVTYPEs which can match them
+REGION_SVTYPES = {'cnv_loss': ['DEL'], 'cnv_gain': ['DUP'], 'cnv_both': ['DEL', 'DUP']}
+REGION_DTYPE = hl.tarray(
+    hl.tstruct(
+        name=hl.tstr, chrom=hl.tstr, start=hl.tint64, end=hl.tint64, svtypes=hl.tarray(hl.tstr), min_overlap=hl.tint64
+    ),
+)
 
 
 def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
@@ -120,6 +138,54 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
             lof_ensg=lof_ensg,
             # this is so we can explode it out later, whilst keeping the full list
             gene_id=bnd_ensg.union(lof_ensg),
+        ),
+    )
+
+
+def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.MatrixTable:
+    """
+    Find CNVs matching a PanelApp region, either by % overlap, or fully contained in the region
+    Matched region names are recorded in categorydetailsregulatorycnv, and added to gene_id so they survive the explode
+
+    Args:
+        mt (hl.MatrixTable): MT, after rearrange_annotations
+        panelapp (PanelApp): parsed PanelApp data, containing regions
+
+    Returns:
+        same MT, with region matches annotated
+    """
+    regions = hl.literal(
+        [
+            {
+                'name': region.name,
+                'chrom': f'chr{region.chrom}',
+                'start': region.start,
+                'end': region.end,
+                'svtypes': REGION_SVTYPES[region.variant_type],
+                # minimum overlap in bp, rounded up so the required % is always met
+                'min_overlap': (region.required_overlap * (region.end - region.start) + 99) // 100,
+            }
+            for region in panelapp.regions.values()
+        ],
+        dtype=REGION_DTYPE,
+    )
+
+    def region_match(region: hl.StructExpression) -> hl.BooleanExpression:
+        return (
+            (region.chrom == mt.locus.contig)
+            & (region.svtypes.contains(mt.info.svtype))
+            & (
+                (hl.min(mt.info.end, region.end) - hl.max(mt.locus.position, region.start) >= region.min_overlap)
+                | ((mt.locus.position >= region.start) & (mt.info.end <= region.end))
+            )
+        )
+
+    matched = regions.filter(region_match).map(lambda region: region.name)
+
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categorydetailsregulatorycnv=hl.if_else(hl.len(matched) > 0, hl.delimit(matched, '+'), MISSING_STRING),
+            gene_id=mt.info.gene_id.union(hl.set(matched)),
         ),
     )
 
@@ -286,11 +352,16 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     logger.info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
 
-    # drop rows with no Exonic BND or LOF consequences
-    mt = mt.filter_rows((hl.len(mt.info.PREDICTED_LOF) > 0) | (hl.len(mt.info.PREDICTED_BREAKEND_EXONIC) > 0))
-
-    # rearrange the annotations
+    # rearrange the annotations, and find any PanelApp CNV region matches
     mt = rearrange_annotations(mt, gene_id_mapping)
+    mt = annotate_region_overlaps(mt, panelapp)
+
+    # drop rows with no Exonic BND, LOF consequences, or region matches
+    mt = mt.filter_rows(
+        (hl.len(mt.info.lof) > 0)
+        | (hl.len(mt.info.bnd) > 0)
+        | (mt.info.categorydetailsregulatorycnv != MISSING_STRING),
+    )
 
     # apply blanket filters
     ac_threshold = config_retrieve(['RunHailFiltering', 'callset_af_sv_recessive'])
@@ -299,8 +370,9 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     mt = mt.explode_rows(mt.info.gene_id)
 
-    # hard filter remaining rows to PanelApp green genes
-    mt = mt.filter_rows(green_expression.contains(mt.info.gene_id))
+    # hard filter remaining rows to PanelApp green genes, or matched PanelApp regions
+    region_names = hl.literal(set(panelapp.regions), dtype=hl.tset(hl.tstr))
+    mt = mt.filter_rows(green_expression.contains(mt.info.gene_id) | region_names.contains(mt.info.gene_id))
 
     # everything left is categorised, depending on the annotations
     mt = mt.annotate_rows(
