@@ -163,7 +163,7 @@ def test_fix_hemi_calls_diploidises_haploid_genotypes():
 
 
 def test_annotate_region_overlaps():
-    """a CNV matches a region only if the type matches and it overlaps the required % of the region"""
+    """a CNV matches a region if the type matches, and it overlaps the required % of the region or is fully inside it"""
     panelapp = PanelApp(
         regions={
             'LOSS': RegionDetail(
@@ -177,10 +177,18 @@ def test_annotate_region_overlaps():
     # each SV is start, end, svtype
     # DEL 90% of region, 100% of CNV -> both
     # DEL 100% of region, only 50% of CNV -> both, CNV size doesn't matter
-    # DEL 70% of region -> BOTH only, too small for LOSS's 80%
+    # DEL 70% of region, hanging off the start -> BOTH only, too small for LOSS's 80%
+    # DEL 10% of region, fully inside it -> both, containment ignores the required %
     # DUP 90% of region -> BOTH only, wrong type for LOSS
     # DEL on another position -> none
-    svs = [(1000, 1900, 'DEL'), (1000, 3000, 'DEL'), (1000, 1700, 'DEL'), (1100, 2000, 'DUP'), (5000, 6000, 'DEL')]
+    svs = [
+        (1000, 1900, 'DEL'),
+        (1000, 3000, 'DEL'),
+        (300, 1700, 'DEL'),
+        (1400, 1500, 'DEL'),
+        (1100, 2000, 'DUP'),
+        (5000, 6000, 'DEL'),
+    ]
     mt = hl.utils.range_matrix_table(n_rows=len(svs), n_cols=1)
     sv = hl.literal(svs)[mt.row_idx]
     mt = mt.annotate_rows(
@@ -193,6 +201,7 @@ def test_annotate_region_overlaps():
         {'LOSS', 'BOTH'},
         {'LOSS', 'BOTH'},
         {'BOTH'},
+        {'LOSS', 'BOTH'},
         {'BOTH'},
         {'missing'},
     ]

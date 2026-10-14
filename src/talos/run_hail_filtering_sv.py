@@ -144,7 +144,7 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
 
 def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.MatrixTable:
     """
-    Find CNVs matching a PanelApp region, with region overlap of at least the region's required %
+    Find CNVs matching a PanelApp region, either by % overlap, or fully contained in the region
     Matched region names are recorded in categorydetailsregulatorycnv, and added to gene_id so they survive the explode
 
     Args:
@@ -173,8 +173,11 @@ def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.Matri
     def region_match(region: hl.StructExpression) -> hl.BooleanExpression:
         return (
             (region.chrom == mt.locus.contig)
-            & region.svtypes.contains(mt.info.svtype)
-            & (hl.min(mt.info.end, region.end) - hl.max(mt.locus.position, region.start) >= region.min_overlap)
+            & (region.svtypes.contains(mt.info.svtype))
+            & (
+                (hl.min(mt.info.end, region.end) - hl.max(mt.locus.position, region.start) >= region.min_overlap)
+                | ((mt.locus.position >= region.start) & (mt.info.end <= region.end))
+            )
         )
 
     matched = regions.filter(region_match).map(lambda region: region.name)
