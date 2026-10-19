@@ -53,6 +53,10 @@ max_depth = 1000
 min_proband_gq = 25
 min_alt_depth = 5
 
+[RunHailFilteringSv]
+# if a regulatory region fully covers a CNV, require at least this % of the region to be covered to assess as a match
+regulatory_region_percentage = 10
+
 [ValidateMOI]
 ## opt-in enhanced logging to explain reasons for candidate variants being skipped
 #super_logging = true
