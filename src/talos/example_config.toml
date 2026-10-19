@@ -148,7 +148,7 @@ apply_min_all_sample_gq = true
 gnomad_population = 'gnomad_v4.1'
 
 # if a regulatory region fully covers a CNV, require at least this % of the region to be covered to assess as a match
-regulatory_region_percentage = 15
+regulatory_region_percentage = 10
 
 [CreateTalosHTML]
 remove_solved_cases = true

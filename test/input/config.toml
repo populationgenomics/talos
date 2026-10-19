@@ -70,6 +70,9 @@ max_depth = 1000
 min_proband_gq = 25
 min_alt_depth = 5
 
+[RunHailFilteringSv]
+regulatory_region_percentage = 15
+
 #[cohorts.cohort]
 ## cohort-specific variables affecting how the final HTML report appears
 ## seqr_lookup: mapping of IDs in PED/VCF -> Seqr family ID

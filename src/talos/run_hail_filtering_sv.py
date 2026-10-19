@@ -158,7 +158,7 @@ def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.Matri
 
     # if a CNV in variant data is fully enclosed by a regulatory region, at least this percentage of the regulatory
     # region must be covered to be considered a match
-    min_region_percentage = config_retrieve(['RunHailFilteringSv', 'regulatory_region_percentage'], 15)
+    min_region_percentage = config_retrieve(['RunHailFilteringSv', 'regulatory_region_percentage'], 10)
 
     regions = hl.literal(
         [
