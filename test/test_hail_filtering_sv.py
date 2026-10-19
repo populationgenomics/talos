@@ -178,13 +178,15 @@ def test_annotate_region_overlaps():
     # DEL 90% of region, 100% of CNV -> both
     # DEL 100% of region, only 50% of CNV -> both, CNV size doesn't matter
     # DEL 70% of region, hanging off the start -> BOTH only, too small for LOSS's 80%
-    # DEL 10% of region, fully inside it -> both, containment ignores the required %
+    # DEL 20% of region, fully inside it -> both, containment only needs regulatory_region_percentage (15)
+    # DEL 10% of region, fully inside it -> none, below regulatory_region_percentage
     # DUP 90% of region -> BOTH only, wrong type for LOSS
     # DEL on another position -> none
     svs = [
         (1000, 1900, 'DEL'),
         (1000, 3000, 'DEL'),
         (300, 1700, 'DEL'),
+        (1400, 1600, 'DEL'),
         (1400, 1500, 'DEL'),
         (1100, 2000, 'DUP'),
         (5000, 6000, 'DEL'),
@@ -202,6 +204,7 @@ def test_annotate_region_overlaps():
         {'LOSS', 'BOTH'},
         {'BOTH'},
         {'LOSS', 'BOTH'},
+        {'missing'},
         {'BOTH'},
         {'missing'},
     ]

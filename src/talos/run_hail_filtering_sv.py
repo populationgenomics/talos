@@ -144,7 +144,8 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
 
 def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.MatrixTable:
     """
-    Find CNVs matching a PanelApp region, either by % overlap, or fully contained in the region
+    Find CNVs matching a PanelApp region, either by % overlap, or fully contained in the region (subject to a minimum
+    percentage of region overlap).
     Matched region names are recorded in categorydetailsregulatorycnv, and added to gene_id so they survive the explode
 
     Args:
@@ -154,6 +155,11 @@ def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.Matri
     Returns:
         same MT, with region matches annotated
     """
+
+    # if a CNV in variant data is fully enclosed by a regulatory region, at least this percentage of the regulatory
+    # region must be covered to be considered a match
+    min_region_percentage = config_retrieve(['RunHailFilteringSv', 'regulatory_region_percentage'], 15)
+
     regions = hl.literal(
         [
             {
@@ -176,7 +182,10 @@ def annotate_region_overlaps(mt: hl.MatrixTable, panelapp: PanelApp) -> hl.Matri
             & (region.svtypes.contains(mt.info.svtype))
             & (
                 (hl.min(mt.info.end, region.end) - hl.max(mt.locus.position, region.start) >= region.min_overlap)
-                | ((mt.locus.position >= region.start) & (mt.info.end <= region.end))
+                | (
+                    ((mt.locus.position >= region.start) & (mt.info.end <= region.end))
+                    & ((mt.info.end - mt.locus.position) * 100 >= min_region_percentage * (region.end - region.start))
+                )
             )
         )
 
