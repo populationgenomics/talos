@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.3.1] - 2026-11
+
+### Fixed
+
+  * Single-sample VCF inputs (`ss_vcf_dir`) are now split and left-aligned per sample before merging, instead of after (#729). When an allele was part of a multi-allelic record in one sample but a separate record in another, the merge split it across two rows, each with only some samples' genotypes. That produced false de novo calls and dropped alleles. Cohorts annotated from `ss_vcf_dir` before this fix keep the bad rows until their `${cohort}_annotated/` directory is deleted and they are re-annotated. A variant written twice within one sample's VCF is now also deduplicated
+
 [12.3.0] - 2026-10
 
 ### Added
