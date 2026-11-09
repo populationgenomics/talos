@@ -21,6 +21,12 @@ jobs:
       with:
         python-version: '3.11'
 
+    # Hail/Spark's bundled Hadoop breaks on Java 23+ (Subject.getSubject removed); match the Docker image's JDK
+    - uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
     - name: Install packages
       run: |
         pip install .[test,cpg]
