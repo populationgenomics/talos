@@ -1,0 +1,13 @@
+{
+  "default": true,
+  "line-length": false,
+  "no-inline-html": {
+    "allowed_elements": ["details", "img"]
+  },
+  "ul-indent": false,
+  "no-multiple-blanks": false,
+  "MD024": false,
+  "MD001": false,
+  "MD049": false,
+  "MD029": false
+}
