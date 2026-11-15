@@ -1,5 +1,5 @@
 default_language_version:
-  python: python3.11
+  python: python3.12
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -26,7 +26,6 @@ repos:
       - id: ruff-format
       - id: ruff-check
 
-  # Static type analysis (as much as it's possible in python using type hints)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.1.0
     hooks:

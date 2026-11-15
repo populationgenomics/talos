@@ -16,7 +16,6 @@ from talos.models import (
 from talos.static_values import get_granular_date
 from talos.utils import (
     annotate_variant_dates_using_prior_results,
-    create_structural_variant,
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_non_ref_samples,
@@ -98,18 +97,20 @@ def test_get_non_ref_samples(cyvcf_example_variant):
     """
 
     samples = ['male', 'father', 'mother']
-    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples=set(samples))
-    assert het == {'male'}
-    assert not hom
+    carriers = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples=set(samples))
+    assert carriers.het == {'male'}
+    assert not carriers.hom
+    assert carriers.indices == [samples.index('male')]
 
 
 def test_get_non_ref_samples_not_in_pedigree(cyvcf_example_variant):
     """samples absent from the pedigree are dropped, even with a variant call"""
 
     samples = ['male', 'father', 'mother']
-    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples={'father', 'mother'})
-    assert not het
-    assert not hom
+    carriers = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples={'father', 'mother'})
+    assert not carriers.het
+    assert not carriers.hom
+    assert not carriers.indices
 
 
 def test_av_categories(trio_abs_variant: SmallVariant):
@@ -315,23 +316,3 @@ def test_annotate_dates_confidence_reset_when_not_found():
     variant = new.results['sam1'].variants[0]
     assert not variant.found_in_current_run
     assert not variant.confidence_increase
-
-
-def test_create_structural_variant_region_category(tmp_path):
-    """the region category only applies to the exploded row for the matched region, not the gene row"""
-    vcf = tmp_path / 'sv.vcf'
-    vcf.write_text(
-        '##fileformat=VCFv4.2\n'
-        '##contig=<ID=chr1,length=248956422>\n'
-        '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="">\n'
-        '##INFO=<ID=gene_id,Number=1,Type=String,Description="">\n'
-        '##INFO=<ID=categorydetailsregulatorycnv,Number=1,Type=String,Description="">\n'
-        '##FORMAT=<ID=GT,Number=1,Type=String,Description="">\n'
-        '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsam1\n'
-        'chr1\t1000\tsv1\tN\t<DEL>\t.\tPASS\tSVLEN=900;gene_id=REGION;categorydetailsregulatorycnv=REGION\tGT\t0/1\n'
-        'chr1\t1000\tsv1\tN\t<DEL>\t.\tPASS\tSVLEN=900;gene_id=ENSG1;categorydetailsregulatorycnv=REGION\tGT\t0/1\n',
-    )
-    reader = VCFReader(str(vcf))
-    region_row, gene_row = (create_structural_variant(var, reader.samples, set(reader.samples)) for var in reader)
-    assert region_row.category_values('sam1') == {'PanelApp Aus Regulatory Region'}
-    assert gene_row.category_values('sam1') == set()

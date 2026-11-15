@@ -1,0 +1,22 @@
+{
+  "case": "rnu4_2_de_novo_clinvar",
+  "description": "de novo ClinVar P/LP in the non-coding gene RNU4-2 (AD)",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr12-120291834-A-G"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr12-120291834-A-G",
+        "gene": "RNU4-2",
+        "categories": [
+          "ClinVar P/LP",
+          "De Novo"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

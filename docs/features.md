@@ -1,6 +1,6 @@
 # Features
 
-Talos prioritises variants using a small set of rule-based **logic modules**, each aligned with specific ACMG/AMP evidence criteria. These modules are each present in code, implemented in Hail Query, and some can be modified by altering thresholds in configuration files. This page outlines the modules and the workflow features built on top of them.
+Talos prioritises variants using a small set of rule-based **logic modules**, each aligned with specific ACMG/AMP evidence criteria. These modules are each present in code, implemented in pure Python, and some can be modified by altering thresholds in configuration files. This page outlines the modules and the workflow features built on top of them.
 
 ---
 
@@ -33,7 +33,7 @@ Each module is configurable through the `.toml` config file — see the [Configu
 
 ## Reanalysis mode
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. It reads the results of previous analyses and integrates them into the latest report. Enable this behaviour with the config setting `params.previous_results`. See [Reanalysis](Reanalysis.md) for full detail.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. It reads the results of previous analyses and integrates them into the latest report. Enable this behaviour by using the `history` parameter of the input TSV. See [Reanalysis](Reanalysis.md) for full detail.
 
 ### How it works
 
@@ -71,16 +71,10 @@ When phenotype terms are provided, they are used to:
 
 Talos produces structured outputs to support both manual review and downstream integration.
 
-### Primary output
-
-- A `*.json` file listing all candidate variants for each proband.
-- Includes variant-level and gene-level evidence, inheritance checks, and phenotype match tags.
-- One or more MatrixTables representing the annotated and reformatted input data. These are the starting point for subsequent runs of the workflow, skipping the annotation process.
-
-### Optional outputs
-
+- A `*.json` file listing all candidate variants for each proband, and all genotypes in the family for that variant.
+  - Includes variant-level and gene-level evidence, inheritance checks, and phenotype match tags.
+- One or more VCFs representing the annotated and reformatted input data. These are the starting point for subsequent runs of the workflow, skipping the annotation process.
 - **HTML reports** summarising results for analysts or clinicians.
-- **Simplified TSV** for Seqr ingestion via `MinimiseOutputForSeqr`.
 
 ### Reanalysis metadata
 

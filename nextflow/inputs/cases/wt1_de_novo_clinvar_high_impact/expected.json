@@ -1,0 +1,23 @@
+{
+  "case": "wt1_de_novo_clinvar_high_impact",
+  "description": "de novo ClinVar P/LP, high-impact variant in WT1 (AD)",
+  "pedigree": "nextflow/inputs/pedigree_male_proband.ped",
+  "injected": [
+    "chr11-32392032-G-A"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr11-32392032-G-A",
+        "gene": "WT1",
+        "categories": [
+          "ClinVar P/LP",
+          "High Impact",
+          "De Novo"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

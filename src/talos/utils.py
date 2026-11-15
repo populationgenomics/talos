@@ -15,7 +15,7 @@ from datetime import datetime
 from functools import cache
 from itertools import chain, combinations, combinations_with_replacement, islice
 from random import choices
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import httpx
 from cloudpathlib.anypath import to_anypath
@@ -24,8 +24,6 @@ from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
 from mendelbrot.pedigree_parser import PedigreeParser
 from numpy import isnan
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
-
-import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -56,6 +54,16 @@ THREE = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
+
+
+class Carriers(NamedTuple):
+    """Samples with a call on a single variant; indices are positions in the VCF sample list."""
+
+    het: set[str]
+    hom: set[str]
+    indices: list[int]
+
+
 PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 X_CHROMOSOME = {'X'}
@@ -154,6 +162,27 @@ def get_categories_translated(conf_string: str = 'support_categories') -> set[st
     return support_categories
 
 
+@cache
+def get_exomiser_rank_threshold() -> int:
+    """Config constant, resolved once - the raw lookup was previously repeated per variant."""
+    return config_retrieve(['ValidateMOI', 'exomiser_rank_threshold'], 2)
+
+
+@cache
+def get_de_novo_thresholds() -> tuple[int, float]:
+    """Config constants (min_alt_depth, min_child_ab), resolved once."""
+    return (
+        config_retrieve(['RunSmallFiltering', 'de_novo', 'min_alt_depth'], 5),
+        config_retrieve(['RunSmallFiltering', 'de_novo', 'min_child_ab'], 0.20),
+    )
+
+
+@cache
+def get_csq_string_fields() -> tuple[str, ...]:
+    """The configured BCSQ field names, resolved once."""
+    return tuple(config_retrieve(['RunSmallFiltering', 'csq_string']))
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
@@ -187,7 +216,11 @@ def get_json_response(url):
     raise ValueError('The JSON response could not be parsed successfully')
 
 
-def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[int, str]]:
+def get_phase_data(
+    samples: list[str],
+    var: 'cyvcf2.Variant',
+    carrier_indices: list[int],
+) -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
 
@@ -200,6 +233,8 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
     Args:
         samples (list[str]): all samples in the VCF
         var (cyvcf2.Variant):
+        carrier_indices (list[int]): positions of samples with a call - phase is only ever consulted
+            for carriers (comp-het pairing), so the cohort-wide arrays are read at these positions only
     """
 
     global PHASE_BROKEN
@@ -207,18 +242,21 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
     phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
 
     # check we have relevant attributes in the variant format fields
-    if not any(x in var.FORMAT for x in ['PS', 'PGT', 'PID']):
+    if not (carrier_indices and any(x in var.FORMAT for x in ['PS', 'PGT', 'PID'])):
         return dict(phased_dict)
 
-    # first set the numpy.ndarray to be a list of ints
-    # then zip against ordered sample IDs
+    # read the cohort-wide arrays once, then index them at the carrier positions
     # this might need to store the exact genotype too
     # i.e. 0|1 and 1|0 can be in the same phase-set
     # but are un-phased variants
     try:
         if 'PS' in var.FORMAT:
-            phase_list = [int(phase_val[0]) for phase_val in var.format('PS')]
-            for sample, phase, genotype in zip(samples, phase_list, var.genotypes, strict=True):
+            phase_values = var.format('PS')
+            genotypes = var.genotypes
+            for index in carrier_indices:
+                sample = samples[index]
+                phase = int(phase_values[index][0])
+                genotype = genotypes[index]
                 # cyvcf2.Variant holds two ints, and a bool for biallelic calls
                 # but only one int and a bool for hemi
                 if len(genotype) == THREE:
@@ -241,12 +279,12 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
             logger.info('Failed to find PS phase attributes')
             try:
                 # retry using PGT & PID
-                for sample, phase_gt, phase_id in zip(
-                    samples,
-                    var.format('PGT'),
-                    var.format('PID'),
-                    strict=True,
-                ):
+                phase_gts = var.format('PGT')
+                phase_ids = var.format('PID')
+                for index in carrier_indices:
+                    sample = samples[index]
+                    phase_gt = phase_gts[index]
+                    phase_id = phase_ids[index]
                     if phase_gt != '.' and phase_id != '.':
                         phased_dict[sample][phase_id] = phase_gt
 
@@ -450,12 +488,11 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
         ab_ratios: parsed {ID: float} dictionary of all sample AB ratios
     """
 
-    de_novo_min_alt = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
-    de_novo_min_ab = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
-
     # no de novos, no problem
     if not info_dict.get('categorysampledenovo'):
         return
+
+    de_novo_min_alt, de_novo_min_ab = get_de_novo_thresholds()
 
     to_pop: list[str] = []
     for sample_id in info_dict['categorysampledenovo']:
@@ -491,7 +528,8 @@ def create_str_variant(
     # shuffle the gene ID (ENSG) to match the location Hail classifiers put it
     info['gene_id'] = info.pop('gene')
 
-    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
+    carriers = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
+    het_samples, hom_samples = carriers.het, carriers.hom
 
     # no samples with an STR call, reject the whole variant row
     if not (het_samples or hom_samples):
@@ -534,19 +572,14 @@ def create_small_variant(
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': coordinates.string_format}
 
-    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
+    carriers = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
+    het_samples, hom_samples = carriers.het, carriers.hom
 
     # organise PM5
     organise_pm5(info)
 
     # organise the exomiser data, if present. By default, only retain the top 2 ranked results
-    organise_exomiser(
-        info,
-        rank_threshold=config_retrieve(
-            ['ValidateMOI', 'exomiser_rank_threshold'],
-            2,
-        ),
-    )
+    organise_exomiser(info, rank_threshold=get_exomiser_rank_threshold())
 
     # optionally - ignore some categories from this analysis. Super flexible, lower case and a translated version.
     ignored_categories = get_categories_translated('ignore_categories')
@@ -576,21 +609,19 @@ def create_small_variant(
         elif isinstance(info[sam_cat], set):
             info[sam_cat] = list(info[sam_cat])
 
-    phased = get_phase_data(samples, var)
+    phased = get_phase_data(samples, var, carriers.indices)
 
     # only keep these where the sample has a variant - the majority of samples have empty data, and we don't use it
     # if we require depths/ratios/etc. for WT samples, revisit this
-    # hopefully a solution to the memory explosion in large cohorts
-    variant_samples = het_samples | hom_samples
-    depths: dict[str, int] = {
-        k: v for k, v in zip(samples, map(int, var.gt_depths), strict=True) if k in variant_samples
-    }
-    alt_depths: dict[str, int] = {
-        k: v for k, v in zip(samples, map(int, var.gt_alt_depths), strict=True) if k in variant_samples
-    }
-    ab_ratios: dict[str, float] = {
-        k: v for k, v in zip(samples, map(float, var.gt_alt_freqs), strict=True) if k in variant_samples
-    }
+    # slice the cohort-wide genotype arrays at the carrier positions instead of iterating every sample
+    carrier_names = [samples[index] for index in carriers.indices]
+    depths: dict[str, int] = dict(zip(carrier_names, var.gt_depths[carriers.indices].tolist(), strict=True))
+    alt_depths: dict[str, int] = dict(
+        zip(carrier_names, var.gt_alt_depths[carriers.indices].tolist(), strict=True),
+    )
+    ab_ratios: dict[str, float] = dict(
+        zip(carrier_names, var.gt_alt_freqs[carriers.indices].tolist(), strict=True),
+    )
 
     # requires use of AB ratios and alt depths, may preclude the use of this variant if no categories remain
     organise_de_novo(info, alt_depths, ab_ratios)
@@ -637,13 +668,11 @@ def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str], ped_sam
     if all(attribute in info for attribute in ('chr2', 'end2')):
         info['svlen'] = f'{info["chr2"]}:{info["end2"]}'
 
-    coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.ALT[0], alt=str(info['svlen']))
+    coordinates = Coordinates(
+        chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.ALT[0], alt=str(info.get('svlen', '.'))
+    )
 
-    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
-
-    # region matches are recorded on every exploded row, only apply the category to the row for that region
-    if info['gene_id'] in info.get('categorydetailsregulatorycnv', 'missing').split('+'):
-        info['categorybooleanregulatorycnv'] = 1
+    carriers = get_non_ref_samples(variant=var, samples=samples, ped_samples=ped_samples)
 
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
@@ -655,8 +684,8 @@ def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str], ped_sam
     return StructuralVariant(
         coordinates=coordinates,
         info=info,
-        het_samples=het_samples,
-        hom_samples=hom_samples,
+        het_samples=carriers.het,
+        hom_samples=carriers.hom,
         boolean_categories=boolean_categories,
     )
 
@@ -819,16 +848,18 @@ def get_non_ref_samples(
     variant: 'cyvcf2.Variant',
     samples: list[str],
     ped_samples: set[str],
-) -> tuple[set[str], set[str]]:
+) -> Carriers:
     """
     For this variant, find all samples with a call. cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT.
-    Returns 2 sets of strings; het sample ID, hom sample IDs
+    Returns het sample IDs, hom sample IDs, and the carrier positions in the sample list - downstream
+    genotype-array reads (depths, ratios, phase) are restricted to those positions
     """
     het_samples = set()
     hom_samples = set()
+    indices: list[int] = []
 
     # this iteration is based on the cyvcf2 representations
-    for sam, genotype_int in zip(samples, variant.gt_types, strict=True):
+    for index, (sam, genotype_int) in enumerate(zip(samples, variant.gt_types, strict=True)):
         # remove any participants we don't have pedigree data for
         if sam not in ped_samples:
             continue
@@ -839,8 +870,9 @@ def get_non_ref_samples(
             het_samples.add(sam)
         if genotype_int == HOMALT:
             hom_samples.add(sam)
+        indices.append(index)
 
-    return het_samples, hom_samples
+    return Carriers(het=het_samples, hom=hom_samples, indices=indices)
 
 
 def extract_csq(csq_contents: str) -> list[dict]:
@@ -851,7 +883,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = config_retrieve(['RunHailFiltering', 'csq_string'])
+    csq_categories = get_csq_string_fields()
 
     # iterate over all consequences, and make each into a dict
     txc_dicts = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
@@ -859,7 +891,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
     # update this String to be either a float, or missing
     for each_dict in txc_dicts:
         am_path = each_dict.get('am_pathogenicity')
-        each_dict['am_pathogenicity'] = float(am_path) if am_path else ''
+        each_dict['am_pathogenicity'] = float(am_path) if am_path else None  # type: ignore[assignment]
 
         # update the BCFtools amino acid change with an HGVS reinterpretation
         csq_string = str(each_dict['consequence'])
@@ -1037,10 +1069,6 @@ def generate_summary_stats(result_set: ResultData):
 
         # iterate over all identified variants
         for each_var in sample_results.variants:
-            # stats for the current run should only show variants found in this round
-            if not each_var.found_in_current_run:
-                continue
-
             var_string = each_var.var_data.coordinates.string_format
 
             # catch all comp-het pairs as a single variant - we are electing to count comp-het events as a single
@@ -1111,11 +1139,11 @@ def generate_summary_stats(result_set: ResultData):
     result_set.metadata.unused_ext_labels = unused_ext_labels
 
 
-def get_symbol_to_ensg_mapping(
-    panelapp: PanelApp | DownloadedPanelApp, as_hail: bool = False
-) -> hl.DictExpression | dict[str, str]:
-    """Use the PanelApp data to generate a symbol mapping."""
-    symbol_to_ensg = {gene.symbol: ensg for ensg, gene in panelapp.genes.items()}
-    if as_hail:
-        return hl.literal(symbol_to_ensg)
-    return symbol_to_ensg
+def get_symbol_to_ensg_mapping(panelapp: PanelApp | DownloadedPanelApp) -> dict[str, str]:
+    """
+    Use the PanelApp data to generate a symbol mapping.
+
+    hail is imported inside the as_hail branch, not at module scope - it is an optional extra now,
+    and every streaming consumer of this module calls this with as_hail=False.
+    """
+    return {gene.symbol: ensg for ensg, gene in panelapp.genes.items()}

@@ -1,0 +1,21 @@
+{
+  "case": "ankrd11_missing_parents",
+  "description": "high-impact deletion in ANKRD11 (AD) with parental calls missing, so not callable as de novo",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr16-89279566-CCTTCGGGG-C"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr16-89279566-CCTTCGGGG-C",
+        "gene": "ANKRD11",
+        "categories": [
+          "High Impact"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

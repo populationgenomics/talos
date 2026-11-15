@@ -1,5 +1,6 @@
 process DownloadPanelApp {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         val timestamp

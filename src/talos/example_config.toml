@@ -82,7 +82,7 @@ clinvar_dominant_gnomad_max_af = 0.00005
 clinvar_callset_max_af = 0.05
 clinvar_dominant_callset_max_af = 0.05
 
-ignore_categories = [ "exomiser", "svdb"]
+ignore_categories = []
 
 # we dismiss variants where the proband doesn't have at least this much alt support
 min_alt_depth = 5
@@ -115,7 +115,7 @@ support_categories = ['alphamissense', 'clinvar0star']
 # any STR loci with unacceptably low signal-to-noise ratios - this is the 'locus' name from STRipy, not the gene ID
 noisy_strs = ['ARX_1', 'ARX_2', 'HOXA13_1', 'HOXA13_2',  'HOXA13_3', 'TCF4', 'RUNX2']
 
-[RunHailFiltering]
+[RunSmallFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
 
@@ -127,10 +127,12 @@ callset_af_sv_recessive = 0.03
 critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
 spliceai = 0.5
 am_pathogenicity = 0.564
-minimum_depth = 10
 heteroplasmy_min = 0.2
+callset_af_sv_recessive = 0.03
+minimum_depth = 10
+min_alt_depth = 5
 
-[RunHailFiltering.de_novo]
+[RunSmallFiltering.de_novo]
 min_child_ab = 0.2
 min_depth = 5
 max_depth = 1000
@@ -142,7 +144,7 @@ apply_min_all_sample_gq = true
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
 #min_all_sample_gq = 15
 
-[RunHailFilteringSv]
+[RunSvFiltering]
 # prefix for the population frequency INFO fields, i.e. {gnomad_population}_sv_AF and _sv_SVID
 # the SV annotation workflow reads this same key when renaming SVAFotate's output, so the two cannot disagree
 gnomad_population = 'gnomad_v4.1'

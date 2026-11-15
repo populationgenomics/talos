@@ -1,0 +1,14 @@
+cohort	path	type	pedigree	config
+rfx6_real_de_novo	nextflow/inputs/cases/rfx6_real_de_novo/rfx6_real_de_novo.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml
+usp48_indel_normalisation	nextflow/inputs/cases/usp48_indel_normalisation/usp48_indel_normalisation.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml
+hfe_phenotype_match_only	nextflow/inputs/cases/hfe_phenotype_match_only/hfe_phenotype_match_only.vcf.bgz	vcf	nextflow/inputs/pedigree_male_proband.ped	nextflow/inputs/config.toml
+pkhd1_comp_het_pm5_clinvar	nextflow/inputs/cases/pkhd1_comp_het_pm5_clinvar/pkhd1_comp_het_pm5_clinvar.vcf.bgz	vcf	nextflow/inputs/pedigree_male_proband.ped	nextflow/inputs/config.toml
+dars1_comp_het_supporting_alphamissense	nextflow/inputs/cases/dars1_comp_het_supporting_alphamissense/dars1_comp_het_supporting_alphamissense.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml
+daam2_alphamissense_only_filtered	nextflow/inputs/cases/daam2_alphamissense_only_filtered/daam2_alphamissense_only_filtered.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml
+wt1_de_novo_clinvar_high_impact	nextflow/inputs/cases/wt1_de_novo_clinvar_high_impact/wt1_de_novo_clinvar_high_impact.vcf.bgz	vcf	nextflow/inputs/pedigree_male_proband.ped	nextflow/inputs/config.toml
+wdr74_de_novo	nextflow/inputs/cases/wdr74_de_novo/wdr74_de_novo.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml
+poc1b_homozygous_recessive	nextflow/inputs/cases/poc1b_homozygous_recessive/poc1b_homozygous_recessive.vcf.bgz	vcf	nextflow/inputs/pedigree_male_proband.ped	nextflow/inputs/config.toml
+il2rg_hemizygous_maternal	nextflow/inputs/cases/il2rg_hemizygous_maternal/il2rg_hemizygous_maternal.vcf.bgz	vcf	nextflow/inputs/pedigree_male_proband.ped	nextflow/inputs/config.toml
+rnu4_2_de_novo_clinvar	nextflow/inputs/cases/rnu4_2_de_novo_clinvar/rnu4_2_de_novo_clinvar.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml
+hspa8_not_on_panel	nextflow/inputs/cases/hspa8_not_on_panel/hspa8_not_on_panel.vcf.bgz	vcf	nextflow/inputs/pedigree_male_proband.ped	nextflow/inputs/config.toml
+ankrd11_missing_parents	nextflow/inputs/cases/ankrd11_missing_parents/ankrd11_missing_parents.vcf.bgz	vcf	nextflow/inputs/pedigree_female_proband.ped	nextflow/inputs/config.toml

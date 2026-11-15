@@ -5,19 +5,22 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    defaults:
-      run:
-        shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        cache-dependency-path: requirements-lint.txt
+    - uses: actions/checkout@v6
 
-    - name: Install types
-      run: pip install -r requirements-lint.txt
+    # pre-commit builds its hook environments from an interpreter on PATH
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    - uses: astral-sh/setup-uv@v7
+      with:
+        python-version: '3.12'
+        enable-cache: true
+
+    - name: Install packages
+      run: uv sync --locked --extra test
 
     - name: pre-commit
-      run: pre-commit run --all-files
+      run: uv run --no-sync pre-commit run --all-files

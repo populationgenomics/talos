@@ -6,10 +6,10 @@ process MergeVcfsWithBcftools {
         path ref_genome
 
     output:
-        tuple val(cohort), path("${cohort}_merged.vcf.bgz")
+        tuple val(cohort), path("${cohort}_merged.vcf.bgz"), path("${cohort}_merged.vcf.bgz.tbi")
 
     script:
-        def input = (vcfs.collect().size() > 1) ? vcfs.sort{ it.name } : vcfs
+        def input = (vcfs.collect().size() > 1) ? vcfs.sort{ svcf -> svcf.name } : vcfs
         """
         set -euo pipefail
 
@@ -44,6 +44,7 @@ process MergeVcfsWithBcftools {
         	-Oz \
         	--no-version \
         	-o "${cohort}_merged.vcf.bgz" \
+        	-W=tbi \
         	normalised/*.bcf
         """
 }

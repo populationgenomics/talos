@@ -17,6 +17,7 @@ from talos.models import (
 )
 from talos.static_values import get_granular_date
 from talos.unified_panelapp_parser import (
+    CUSTOM_PANEL_CONFIDENCE,
     CUSTOM_PANEL_ID,
     ORDERED_MOIS,
     extract_participant_data_from_pedigree,
@@ -173,6 +174,7 @@ def test_update_moi_from_config_add_new_gene():
     assert 'ENSG1' in panelapp_data.genes
     assert panelapp_data.genes['ENSG1'].moi == ORDERED_MOIS[0]
     assert CUSTOM_PANEL_ID in panelapp_data.genes['ENSG1'].panels
+    assert panelapp_data.genes['ENSG1'].panel_confidences[CUSTOM_PANEL_ID] == CUSTOM_PANEL_CONFIDENCE
 
 
 def test_update_moi_from_config_update_existing_gene():
@@ -182,6 +184,7 @@ def test_update_moi_from_config_update_existing_gene():
     update_moi_from_config(panelapp_data, add_genes)
     assert panelapp_data.genes['ENSG2'].moi == ORDERED_MOIS[2]
     assert CUSTOM_PANEL_ID in panelapp_data.genes['ENSG2'].panels
+    assert panelapp_data.genes['ENSG2'].panel_confidences[CUSTOM_PANEL_ID] == CUSTOM_PANEL_CONFIDENCE
 
 
 def test_remove_blacklisted_genes():

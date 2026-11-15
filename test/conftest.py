@@ -12,21 +12,15 @@ from _pytest.logging import LogCaptureFixture
 from cyvcf2 import VCFReader
 from loguru import logger
 
-import hail as hl
-
-from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
-
 # force this to come first
 PWD = Path(__file__).parent
 INPUT: str = str(PWD / 'input')
-hl.init()
-hl.default_reference('GRCh38')
 environ['TALOS_CONFIG'] = join(INPUT, 'config.toml')
 
 from talos.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = join(INPUT, '1_labelled_variant.vcf.bgz')
-Talos_OUTPUT = join(INPUT, 'aip_output_example.json')
+Talos_OUTPUT = join(INPUT, 'output_example.json')
 DE_NOVO_PED = join(INPUT, 'de_novo_ped.fam')
 FAKE_OBO = join(INPUT, 'hpo_test.obo')
 LOOKUP_PED = join(INPUT, 'mock_sm_lookup.json')
@@ -58,98 +52,6 @@ def caplog(caplog: LogCaptureFixture):
     logger.remove(handler_id)
 
 
-@pytest.fixture(name='cleanup', scope='session', autouse=True)
-def fixture_hail_cleanup():
-    """
-    a fixture to clean up hail log files
-    irrelevant in CI, a right pain for local testing
-    auto-use + session + immediate yield means this is the last method call
-    """
-
-    # yield something to suspend
-    yield ''
-
-    log_files = [
-        filename for filename in PWD.parent.iterdir() if filename.name.startswith('hail') and filename.suffix == '.log'
-    ]
-
-    # remove all hail log files
-    for filename in log_files:
-        filename.unlink()
-
-
-@pytest.fixture(name='make_a_mt', scope='session')
-def fixture_make_a_mt(tmp_path_factory) -> hl.MatrixTable:
-    """
-    a fixture to make a matrix table
-    """
-    tmp_path = tmp_path_factory.mktemp('mt_goes_here')
-    sample_gt = Entry('0/1')
-    sample_data = {'SAMPLE': sample_gt}
-    sample_schema = {'SAMPLE': sample_gt.get_schema_entry()}
-    v = VepVariant(
-        BaseFields('chr1:12345', alleles=['A', 'G']),
-        [TXFields('a', 'ensga')],
-        sample_data=sample_data,
-    )
-    return SneakyTable([v], sample_details=sample_schema, tmp_path=str(tmp_path)).to_hail()
-
-
-@pytest.fixture(name='make_a_de_novo_mt', scope='session')
-def fixture_make_a_dn_mt(tmp_path_factory) -> hl.MatrixTable:
-    """
-    a fixture to make a matrix table
-    """
-    tmp_path = tmp_path_factory.mktemp('dn_mt_goes_here')
-    sample_gt = Entry('0/1')
-    parent_gt = Entry('0/0', ad=[30, 0], gq=40)
-    sample_data = {'male': sample_gt, 'mother_1': parent_gt, 'father_1': parent_gt}
-    sample_schema = {
-        'male': sample_gt.get_schema_entry(),
-        'mother_1': parent_gt.get_schema_entry(),
-        'father_1': parent_gt.get_schema_entry(),
-    }
-    v = VepVariant(
-        BaseFields('chr1:12345', alleles=['A', 'G']),
-        [TXFields('a', 'ensga')],
-        sample_data=sample_data,
-    )
-    return SneakyTable([v], sample_details=sample_schema, tmp_path=str(tmp_path)).to_hail()
-
-
-@pytest.fixture(name='make_a_bch_de_novo_mt', scope='session')
-def fixture_make_a_bch_dn_mt(tmp_path_factory) -> hl.MatrixTable:
-    """
-    a fixture to make a matrix table
-    """
-    tmp_path = tmp_path_factory.mktemp('bch_dn_mt_goes_here')
-    sample_gt = Entry('0/1', ad=[12])
-    parent_gt = Entry('0/0', ad=[30], gq=40)
-    sample_data = {'male': sample_gt, 'mother_1': parent_gt, 'father_1': parent_gt}
-    sample_schema = {
-        'male': sample_gt.get_schema_entry(),
-        'mother_1': parent_gt.get_schema_entry(),
-        'father_1': parent_gt.get_schema_entry(),
-    }
-    v = VepVariant(
-        BaseFields('chr1:12345', alleles=['A', 'G']),
-        [TXFields('a', 'ensga')],
-        sample_data=sample_data,
-    )
-    return SneakyTable([v], sample_details=sample_schema, tmp_path=str(tmp_path)).to_hail()
-
-
-@pytest.fixture(name='make_a_vcf', scope='session')
-def fixture_make_a_vcf(make_a_mt, tmp_path_factory) -> str:
-    """
-    a fixture to make a matrix table
-    """
-    tmp_path = tmp_path_factory.mktemp('vcf_goes_here')
-    vcf_path = str(tmp_path / 'test.vcf.bgz')
-    hl.export_vcf(make_a_mt, vcf_path, tabix=True)
-    return vcf_path
-
-
 @pytest.fixture(name='test_input_path', scope='session')
 def fixture_test_input_path() -> str:
     """path to the test input directory"""
@@ -170,18 +72,19 @@ def fixture_fake_obo() -> str:
 
 @pytest.fixture(name='fake_panelapp_overview', scope='session')
 def fixture_panelapp_overview() -> Any:
-    """path to panelapp_overview json"""
+    """path to panelapp_overview JSON"""
     return read_json_from_path(FAKE_PANELAPP_OVERVIEW)
 
 
 @pytest.fixture(name='panel_activities', scope='session')
 def fixture_panel_activities() -> Any:
-    """path to activities json"""
+    """path to activities JSON"""
     return read_json_from_path(PANEL_ACTIVITIES)
 
 
 @pytest.fixture(name='latest_mendeliome', scope='session')
 def fixture_latest_mendeliome() -> Any:
+    """path to mendeliome JSON"""
     return read_json_from_path(PANELAPP_LATEST)
 
 
@@ -197,7 +100,7 @@ def fixture_panels_and_hpo() -> Any:
 
 @pytest.fixture(name='latest_incidentalome', scope='session')
 def fixture_latest_incidentalome() -> Any:
-    """path to mendeliome json"""
+    """path to incidentalome JSON"""
     return read_json_from_path(PANELAPP_INCIDENTALOME)
 
 

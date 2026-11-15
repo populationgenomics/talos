@@ -1,0 +1,36 @@
+{
+  "case": "dars1_comp_het_supporting_alphamissense",
+  "description": "DARS1 (AR) compound het: paternal high-impact reported, maternal AlphaMissense is support only",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr2-135920591-G-C",
+    "chr2-135912503-G-A"
+  ],
+  "background_variants": 160,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr2-135920591-G-C",
+        "gene": "DARS1",
+        "categories": [
+          "AlphaMissense",
+          "ClinVar P/LP",
+          "PM5"
+        ],
+        "support_vars": [
+          "chr2-135912503-G-A"
+        ]
+      },
+      {
+        "variant": "chr2-135912503-G-A",
+        "gene": "DARS1",
+        "categories": [
+          "AlphaMissense"
+        ],
+        "support_vars": [
+          "chr2-135920591-G-C"
+        ]
+      }
+    ]
+  }
+}

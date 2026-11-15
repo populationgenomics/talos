@@ -1,0 +1,62 @@
+[
+  {
+    "id": "COH0001",
+    "name": "alpha trios",
+    "project": {
+      "name": "alpha-test",
+      "dataset": "alpha",
+      "meta": {"is_seqr": true, "seqr-project-genome": "R0001_alpha", "seqr-project-exome": "R0002_alpha"}
+    },
+    "sequencingGroups": [
+      {
+        "id": "SGPROBAND",
+        "type": "genome",
+        "technology": "short-read",
+        "sample": {
+          "project": {"name": "alpha-test"},
+          "participant": {
+            "externalId": "PROBAND",
+            "phenotypes": {"HPO Terms (present)": "HP:0004322,HP:0002779 HP:0004322", "HPO Terms (absent)": "HP:0000001"}
+          }
+        }
+      },
+      {
+        "id": "SGFATHER",
+        "type": "genome",
+        "technology": "short-read",
+        "sample": {"project": {"name": "alpha-test"}, "participant": {"externalId": "FATHER", "phenotypes": {}}}
+      },
+      {
+        "id": "SGMOTHER",
+        "type": "genome",
+        "technology": "short-read",
+        "sample": {"project": {"name": "alpha-test"}, "participant": {"externalId": "MOTHER", "phenotypes": {}}}
+      },
+      {
+        "id": "SGPROBANDEXOME",
+        "type": "exome",
+        "technology": "short-read",
+        "sample": {"project": {"name": "alpha-test"}, "participant": {"externalId": "PROBAND", "phenotypes": {}}}
+      },
+      {
+        "id": "SGPROBANDLRS",
+        "type": "genome",
+        "technology": "long-read",
+        "sample": {"project": {"name": "alpha-test"}, "participant": {"externalId": "PROBAND", "phenotypes": {}}}
+      }
+    ]
+  },
+  {
+    "id": "COH0002",
+    "name": "beta singletons",
+    "project": {"name": "beta-test", "dataset": "beta", "meta": {}},
+    "sequencingGroups": [
+      {
+        "id": "SGSINGLETON",
+        "type": "genome",
+        "technology": "short-read",
+        "sample": {"project": {"name": "beta-test"}, "participant": {"externalId": "SINGLETON", "phenotypes": null}}
+      }
+    ]
+  }
+]

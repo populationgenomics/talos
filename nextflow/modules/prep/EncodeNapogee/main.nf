@@ -1,5 +1,6 @@
 process EncodeNapogee {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         path tsv
@@ -11,7 +12,7 @@ process EncodeNapogee {
         """
         set -euo pipefail
 
-        python -m talos.annotation_scripts.parse_napogee \
+        python -m talos.scripts.parse_napogee \
             --input ${tsv} \
             --output napogee.vcf.gz
 

@@ -1,13 +1,15 @@
 process CreateTalosHTML {
     container params.container
+    publishDir { report_dir }, mode: 'copy'
 
     input:
-        tuple val(cohort), path(talos_result_json), path(panelapp_data), path(talos_config), path(ext_ids), path(seqr_ids)
+        tuple val(cohort), path(talos_result_json), path(panelapp_data), path(talos_config), path(ext_ids), path(seqr_ids), val(report_dir)
         val timestamp
 
     output:
         tuple val(cohort), path("${cohort}_report_${timestamp}.html")
 
+    // ext_ids and seqr_ids are optional - absent inputs arrive as [] (falsy, stages nothing)
     script:
         def ext_id_arg = ext_ids ? "--ext_ids $ext_ids" : ''
         def seqr_arg = seqr_ids ? "--seqr_ids $seqr_ids" : ''

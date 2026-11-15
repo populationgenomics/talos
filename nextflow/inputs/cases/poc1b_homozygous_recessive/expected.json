@@ -1,0 +1,22 @@
+{
+  "case": "poc1b_homozygous_recessive",
+  "description": "homozygous ClinVar P/LP, SpliceAI, high-impact variant in POC1B (AR)",
+  "pedigree": "nextflow/inputs/pedigree_male_proband.ped",
+  "injected": [
+    "chr12-89470359-A-C"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr12-89470359-A-C",
+        "gene": "POC1B",
+        "categories": [
+          "ClinVar P/LP",
+          "High Impact"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

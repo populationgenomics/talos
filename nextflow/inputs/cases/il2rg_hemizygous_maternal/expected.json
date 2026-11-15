@@ -1,0 +1,21 @@
+{
+  "case": "il2rg_hemizygous_maternal",
+  "description": "hemizygous ClinVar P/LP in IL2RG inherited from a het mother, haploid GT in a male proband",
+  "pedigree": "nextflow/inputs/pedigree_male_proband.ped",
+  "injected": [
+    "chrX-71109321-G-A"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chrX-71109321-G-A",
+        "gene": "IL2RG",
+        "categories": [
+          "ClinVar P/LP"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

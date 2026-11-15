@@ -1,5 +1,6 @@
 process EncodeMitotip {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         path tsv
@@ -11,7 +12,7 @@ process EncodeMitotip {
         """
         set -euo pipefail
 
-        python -m talos.annotation_scripts.parse_mitotip \
+        python -m talos.scripts.parse_mitotip \
             --input ${tsv} \
             --output mitotip.vcf.gz
 

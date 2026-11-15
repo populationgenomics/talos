@@ -185,6 +185,59 @@ def test_gene_clean_results_personal():
             assert event.panels.matched == {4: '4'}
 
 
+def test_gene_clean_results_max_confidence():
+    """
+    max_confidence is the highest confidence across every panel applied to the participant which carries the gene
+    - the custom panel (0) is never assigned to a participant, it must arrive through the forced panel set
+    - a panel with no recorded confidence contributes 0
+    - a participant missing from panelapp gives 0, not a crash
+    """
+    results_holder = ResultData(
+        results={
+            'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1'}},
+            'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
+        },
+    )
+    panelapp = PanelApp(
+        metadata={
+            0: {'id': 0, 'name': 'custom'},
+            137: {'id': 137, 'version': '137'},
+            1: {'id': 1, 'version': '1', 'name': '1'},
+            2: {'id': 2, 'version': '2', 'name': '2'},
+        },
+        genes={
+            # on the custom panel and one participant panel - custom wins
+            'ENSG_CUSTOM': {'panels': {0, 1}, 'panel_confidences': {0: 3, 1: 2}, 'symbol': 'GC'},
+            # only on participant panels, take the highest of those
+            'ENSG_AMBER': {'panels': {137, 1}, 'panel_confidences': {137: 1, 1: 2}, 'symbol': 'GA'},
+            # on a participant panel, but no confidence recorded for it
+            'ENSG_NONE': {'panels': {2}, 'symbol': 'GN'},
+        },
+        participants={
+            'sam1': {'panels': {137, 1, 2}, 'hpo_terms': []},
+        },
+    )
+    events = [
+        ReportVariant(sample='sam1', var_data=VAR_1, categories={'2': get_granular_date()}, gene='ENSG_CUSTOM'),
+        ReportVariant(sample='sam1', var_data=VAR_2, categories={'2': get_granular_date()}, gene='ENSG_AMBER'),
+        ReportVariant(sample='sam1', var_data=VAR_1, categories={'2': get_granular_date()}, gene='ENSG_NONE'),
+        # sam2 is not in panelapp.participants, but the gene is on the custom panel so it survives
+        ReportVariant(sample='sam2', var_data=VAR_1, categories={'2': get_granular_date()}, gene='ENSG_CUSTOM'),
+    ]
+
+    filter_results_to_panels(results_holder, events, panelapp=panelapp)
+
+    by_gene = {event.gene: event for event in results_holder.results['sam1'].variants}
+    assert by_gene['ENSG_CUSTOM'].max_confidence == THREE_EXPECTED
+    assert by_gene['ENSG_CUSTOM'].panels.forced == {0: 'custom'}
+    assert by_gene['ENSG_AMBER'].max_confidence == TWO_EXPECTED
+    assert by_gene['ENSG_NONE'].max_confidence == ZERO_EXPECTED
+
+    # no participant panels at all, but the custom panel is forced, so it still counts as green
+    assert len(results_holder.results['sam2'].variants) == ONE_EXPECTED
+    assert results_holder.results['sam2'].variants[0].max_confidence == THREE_EXPECTED
+
+
 def test_update_results_meta(pedigree_path: str):
     """
     testing the dict update

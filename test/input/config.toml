@@ -51,26 +51,27 @@ exomiser_rank_threshold = 2
 # All IDs for cases to remove from this round of reports - already solved
 solved_cases = ['female']
 
-[RunHailFiltering]
+[RunSmallFiltering]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
 csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
 ac_threshold = 0.01
 additional_csq = ['missense', 'inframe_deletion', 'inframe_insertion']
 af_semi_rare = 0.01
+callset_af_sv_recessive = 0.03
 critical_csq = ['frameshift', 'splice_acceptor', 'splice_donor', 'start_lost', 'stop_gained', 'stop_lost']
 minimum_depth = 10
 spliceai = 0.5
 avi = 0.75
 am_pathogenicity = 0.564
 
-[RunHailFiltering.de_novo]
+[RunSmallFiltering.de_novo]
 min_child_ab = 0.2
 min_depth = 5
 max_depth = 1000
 min_proband_gq = 25
 min_alt_depth = 5
 
-[RunHailFilteringSv]
+[RunSvFiltering]
 regulatory_region_percentage = 15
 
 #[cohorts.cohort]

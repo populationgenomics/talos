@@ -1,0 +1,21 @@
+{
+  "case": "wdr74_single_sample_multiallelic",
+  "description": "single-sample VCFs: proband 1/2 at a WDR74 multi-allelic site, each parent carrying one ALT. Both alleles are inherited: T>C (ClinVar P/LP, paternal) is reported, T>G (maternal, no other category) must not become a false de novo when the merge splits it from the mother (talos#729)",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr11-62841775-T-C,G"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr11-62841775-T-C",
+        "gene": "WDR74",
+        "categories": [
+          "ClinVar P/LP"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

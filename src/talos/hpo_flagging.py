@@ -15,7 +15,7 @@ from collections import defaultdict
 from semsimian import Semsimian
 
 from talos.config import config_retrieve
-from talos.models import PanelApp, ResultData
+from talos.models import PanelApp, ResultData, translate_category
 from talos.static_values import get_granular_date
 from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
@@ -78,7 +78,6 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
             ensgs.add(variant.var_data.info['gene_id'])  # type: ignore[arg-type]
 
             # for structural variants, add all the LOF'd genes
-            # TODO (mwelland): if/when we create other SV categories, we may need to catch those here too
             if lof := variant.var_data.info.get('lof'):
                 ensgs.update(set(str(lof).split(',')))
 
@@ -166,7 +165,7 @@ def remove_phenotype_required_variants(result_object: ResultData):
             if (
                 (not matched_variant)
                 and (len(variant.support_vars) == 0)
-                and (all(cat in cats_require_pheno_match for cat in variant.categories))
+                and (all(translate_category(cat) in cats_require_pheno_match for cat in variant.categories))
             ):
                 continue
             kept_variants.append(variant)
@@ -211,7 +210,7 @@ def main(
 
     panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
-    gene_map = get_symbol_to_ensg_mapping(panelapp, as_hail=False)
+    gene_map = get_symbol_to_ensg_mapping(panelapp)
 
     # read the results JSON into an object
     results = read_json_from_path(result_file, return_model=ResultData)

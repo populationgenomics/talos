@@ -51,7 +51,7 @@ CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 MEAN_SLASH_SAMPLE = 'Mean/sample'
 
 # reactive to different versions of gnomAD
-GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
+GNOMAD_POP = config_retrieve(['RunSvFiltering', 'gnomad_population'], 'gnomad_v4.1')
 
 # emoji source https://tools.picsart.com/text/emojis/
 CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
@@ -585,7 +585,8 @@ class Variant:
 
             return f'{self.ref}->{self.alt}'
         if isinstance(self.var_data, StructuralVariant):
-            return f'{self.var_data.info["svtype"]} {self.var_data.info["svlen"]}bp'
+            info = self.var_data.info
+            return f'{info["svtype"]} {info["svlen"]}bp' if 'svlen' in info else info['svtype']
 
         if isinstance(self.var_data, ShortTandemRepeat):
             locus = self.var_data.locus or self.var_data.info.get('locus')
@@ -603,9 +604,11 @@ class Variant:
         self.alt = report_variant.var_data.coordinates.alt
         self.change = self.get_var_change()
         self.categories = report_variant.categories
+        # date-related attributes
         self.first_tagged: str = report_variant.first_tagged
         self.evidence_updated: str = report_variant.evidence_last_updated
         self.new_emojis: list[str] = self.assign_new_emojis(vardata=report_variant)
+
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         # these are the panel IDs which are matched based on HPO matching in PanelApp
@@ -648,7 +651,7 @@ class Variant:
                 gene_panelapp_entry = html_builder.panelapp.regions[gene_id]
                 # carried in the variant data, for display in the expanded row details
                 self.var_data.info['panelapp_region'] = gene_panelapp_entry.model_dump(mode='json')
-                # observed overlap, calculated as in RunHailFilteringSv
+                # observed overlap, calculated as in run_sv_filtering
                 cnv_start, cnv_end = self.var_data.coordinates.pos, int(self.var_data.info['end'])
                 region = gene_panelapp_entry
                 overlap = min(cnv_end, region.end) - max(cnv_start, region.start)

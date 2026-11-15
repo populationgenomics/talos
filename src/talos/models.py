@@ -8,6 +8,7 @@ from itertools import pairwise
 from typing import Any
 
 from loguru import logger
+from packaging.version import Version
 from pydantic import BaseModel, Field
 
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
@@ -76,11 +77,16 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'lofsv': 'LOF SV',
     'bnd': 'Exonic BND',
     'exomiser': 'Exomiser',
-    'str': 'ShortTandemRepeat',
     'regulatorycnv': 'PanelApp Aus Regulatory Region',
+    'str': 'Short Tandem Repeat',
 }
 
 CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
+
+
+def is_version_lower(object_version: str, query_version: str) -> bool:
+    """Quick test to see if an 'X.Y.Z' format version number is lower than a comparison value."""
+    return Version(object_version) <= Version(query_version)
 
 
 def translate_category(cat: str) -> str:
@@ -89,19 +95,6 @@ def translate_category(cat: str) -> str:
     # for full matching we need a comparison that strips out spaces and punctuation
     search_key = CATEGORY_FLATTENER.sub('', cat).lower()
     return CATEGORY_TRANSLATOR.get(search_key, cat)
-
-
-class FileTypes(Enum):
-    """
-    enumeration of permitted input file types
-    """
-
-    HAIL_TABLE = '.ht'
-    MATRIX_TABLE = '.mt'
-    PED = 'ped'
-    VCF = '.vcf'
-    VCF_GZ = '.vcf.gz'
-    VCF_BGZ = '.vcf.bgz'
 
 
 class HpoTerm(BaseModel):
@@ -413,6 +406,7 @@ class ReportVariant(BaseModel):
 
     # this will be determined based on the specific panels applied to a participant
     max_confidence: int = Field(default_factory=int)
+
     # log whether there was an increase in panel confidence since the last run
     confidence_increase: bool = Field(default=False)
 
@@ -683,7 +677,6 @@ LIFTOVER_METHODS: dict = {
         '2.1.0_2.2.0': dl_pa_210_to_220,
         '2.2.0_2.3.0': dl_pa_220_to_230,
         '2.3.0_2.4.0': dl_pa_230_to_240,
-        '2.4.0_2.5.0': pa_240_to_250,
     },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
@@ -752,5 +745,4 @@ def lift_up_model_version(
         if liftover_key in LIFTOVER_METHODS[model]:
             data = LIFTOVER_METHODS[model][liftover_key](data)
         data['version'] = current
-
     return data

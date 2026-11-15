@@ -7,7 +7,7 @@
 - Category3, Category4(de_novo) in Proband
 - Samples are PROBAND (het), MOTHER, FATHER (both WT)
 
-#### aip_output_example.json
+#### output_example.json
 
 - Single variant, single sample, minimised output
 - Most VCF Info fields removed for size

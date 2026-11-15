@@ -9,14 +9,23 @@ jobs:
     name: Pip Audit
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.11'
-      - uses: pypa/gh-action-pip-audit@v1.1.0
-        with:
-          inputs: .
-          summary: true
-          ignore-vulns: |
-            GHSA-8qvm-5x2c-j2w7  # Denial of service in protobuf=3.20.2; hail pins this version.
-            CVE-2026-4539  # inefficient RegEx in pygments
-            CVE-2026-21883  # a vuln in bokeh, which is only relevant to bokeh server instances. Hard pin for Hail so can't resolve with pathed version
+          python-version: '3.12'
+          enable-cache: true
+
+      # audit what the image actually installs: every extra, at the versions pinned in uv.lock.
+      # svafotate-cpg is a git dependency with no PyPI version to audit; its dependencies are still exported
+      - name: Export locked requirements
+        run: |
+          uv export --locked --all-extras --no-emit-project --no-emit-package svafotate-cpg \
+            --no-hashes --output-file requirements-audit.txt
+
+      # --disable-pip: audit the pins as exported instead of re-resolving with pip, which rejects
+      # clinvarbitration's Requires-Python upper bound (<3.12) that uv deliberately ignores
+      - name: pip-audit
+        shell: bash
+        run: |
+          uvx pip-audit --disable-pip --no-deps -r requirements-audit.txt \
+            --format markdown --desc off | tee -a "$GITHUB_STEP_SUMMARY"

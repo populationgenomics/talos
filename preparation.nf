@@ -5,11 +5,15 @@ This workflow takes ownership over all the input data preparation steps across b
 
 The data prepared in this workflow is:
 
-- AlphaMissense data, reformatted into a HailTable
+- AlphaMissense data, encoded for echtvar
 - PanelApp data, freshly downloaded
-- ClinVar data, freshly downloaded and reformatted into Hail Tables
+- ClinVar data, freshly downloaded and re-summarised into a VCF of all decisions, a TSV of the same,
+  a JSON codon map for PM5, and the same "all decisions" VCF encoded as an echtvar zip
 - Mane data, downloaded and reformatted
 - BED file representing ROI for all Ensembl genes
+
+Every step is skipped if its product already exists. Each process publishes what it makes straight to
+params.processed_annotations with publishDir - see docs/adr/0001.
 */
 
 nextflow.enable.dsl=2
@@ -19,6 +23,7 @@ include { CreateRoiFromGff3 } from './nextflow/modules/prep/CreateRoiFromGff3/ma
 include { DownloadClinVarFiles } from './nextflow/modules/prep/DownloadClinVarFiles/main'
 include { DownloadPanelApp } from './nextflow/modules/prep/DownloadPanelApp/main'
 include { EncodeAlphaMissense } from './nextflow/modules/prep/EncodeAlphaMissense/main'
+include { EncodeClinvarEchtvar } from './nextflow/modules/prep/EncodeClinvarEchtvar/main'
 include { EncodeMitimpact } from './nextflow/modules/prep/EncodeMitimpact/main'
 include { EncodeMitotip } from './nextflow/modules/prep/EncodeMitotip/main'
 include { EncodeNapogee } from './nextflow/modules/prep/EncodeNapogee/main'
@@ -28,54 +33,36 @@ include { ParseManeIntoJson } from './nextflow/modules/prep/ParseManeIntoJson/ma
 
 
 workflow {
-    main:
     def timestamp = new java.util.Date().format('yyyy-MM')
 
     ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     if (!file(params.alphamissense_zip).exists()) {
-    	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
-        EncodeAlphaMissense(ch_alphamissense_tsv)
-        ch_alphamissense_zip = EncodeAlphaMissense.out
-    } else {
-        ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip)
+        EncodeAlphaMissense(channel.fromPath(params.alphamissense_tsv, checkIfExists: true))
     }
 
     // generate/format the various Mitochondrial annotation sources
     if (!file(params.mitimpact_zip).exists()) {
-    	ch_mitimpact_tsv = channel.fromPath(params.mitimpact_tsv, checkIfExists: true)
-        EncodeMitimpact(ch_mitimpact_tsv)
-        ch_mitimpact_zip = EncodeMitimpact.out
-    } else {
-        ch_mitimpact_zip = channel.fromPath(params.mitimpact_zip)
+        EncodeMitimpact(channel.fromPath(params.mitimpact_tsv, checkIfExists: true))
     }
-
-    // generate/format the various Mitochondrial annotation sources
     if (!file(params.mitotip_zip).exists()) {
-    	ch_mitotip_tsv = channel.fromPath(params.mitotip_tsv, checkIfExists: true)
-        EncodeMitotip(ch_mitotip_tsv)
-        ch_mitotip_zip = EncodeMitotip.out
-    } else {
-        ch_mitotip_zip = channel.fromPath(params.mitotip_zip)
+        EncodeMitotip(channel.fromPath(params.mitotip_tsv, checkIfExists: true))
     }
-
-    // generate/format the various Mitochondrial annotation sources
     if (!file(params.napogee_zip).exists()) {
-    	ch_napogee_tsv = channel.fromPath(params.napogee_tsv, checkIfExists: true)
-        EncodeNapogee(ch_napogee_tsv)
-        ch_napogee_zip = EncodeNapogee.out
-    } else {
-        ch_napogee_zip = channel.fromPath(params.napogee_zip)
+        EncodeNapogee(channel.fromPath(params.napogee_tsv, checkIfExists: true))
     }
 
     // does this month's clinvarbitration data exist?
-    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${timestamp}.ht"
-    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.ht"
+    // the "all" VCF holds every decision and is the echtvar annotation source, the TSV is the same
+    // content read directly by the mito process, and the PM5 JSON is the codon map
+    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${timestamp}.all.vcf.bgz"
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.json"
+    String current_clinvarbitration_tsv = "${params.processed_annotations}/clinvarbitration_${timestamp}.tsv"
 
-    if (file(current_clinvarbitration_pm5).exists()) {
-        ch_clinvar_all = channel.fromPath(current_clinvarbitration_all)
-        ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5)
+    if (file(current_clinvarbitration_all).exists() && file(current_clinvarbitration_pm5).exists() && file(current_clinvarbitration_tsv).exists()) {
+        // only needed if this month's echtvar zip is missing, below
+        ch_clinvar_all_vcf = channel.fromPath(current_clinvarbitration_all)
     } else {
         // new workflow elements to go and create it from raw data
         String subfile = "${params.large_files}/submissions_${timestamp}.txt.gz"
@@ -114,8 +101,18 @@ workflow {
             timestamp,
         )
 
-        ch_clinvar_all = ResummariseRawSubmissions.out.ht
-        ch_clinvar_pm5 = MakeClinvarbitrationPm5.out
+        ch_clinvar_all_vcf = ResummariseRawSubmissions.out.all_vcf.map { vcf, _tbi -> vcf }
+    }
+
+    // encode this month's ClinVar decisions for echtvar, once. Talos previously did this on every
+    // run; the source VCF is month-stamped so the zip only needs regenerating alongside it
+    String current_clinvarbitration_zip = "${params.processed_annotations}/clinvarbitration_${timestamp}.zip"
+
+    if (!file(current_clinvarbitration_zip).exists()) {
+        EncodeClinvarEchtvar(
+            ch_clinvar_all_vcf,
+            timestamp,
+        )
     }
 
     // generate the Region-of-interest BED file from Ensembl GFF3
@@ -123,22 +120,11 @@ workflow {
     // and a overlap-merged version of the same for more efficient region filtering
     if (!file(params.ensembl_bed).exists() || !file(params.ensembl_merged_bed).exists() || !file(params.ensembl_symbol_lookup).exists()) {
         CreateRoiFromGff3(ch_gff)
-        ch_bed = CreateRoiFromGff3.out.bed
-        ch_merged_bed = CreateRoiFromGff3.out.merged_bed
-        ch_symbol_lookup = CreateRoiFromGff3.out.json_lookup
-    } else {
-        ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
-        ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
-        ch_symbol_lookup = channel.fromPath(params.ensembl_symbol_lookup, checkIfExists: true)
     }
 
     // pull and parse the MANE data into a Hail Table
     if (!file(params.mane_json).exists()) {
-        ch_mane_summary = channel.fromPath(params.mane, checkIfExists: true)
-        ParseManeIntoJson(ch_mane_summary)
-        ch_mane_json = ParseManeIntoJson.out
-    } else {
-        ch_mane_json = channel.fromPath(params.mane_json, checkIfExists: true)
+        ParseManeIntoJson(channel.fromPath(params.mane, checkIfExists: true))
     }
 
     String current_panelapp = "${params.processed_annotations}/panelapp_${timestamp}.json"
@@ -147,47 +133,5 @@ workflow {
         DownloadPanelApp(
             timestamp,
         )
-        panelapp_out = DownloadPanelApp.out
-    } else {
-        panelapp_out = channel.fromPath(current_panelapp, checkIfExists: true)
-    }
-
-    // use workflow outputs, not individual copies
-    publish:
-        alphamissense = ch_alphamissense_zip
-        bed = ch_bed
-        merged_bed = ch_merged_bed
-        symbol_lookup = ch_symbol_lookup
-        clinvar_all = ch_clinvar_all
-        clinvar_pm5 = ch_clinvar_pm5
-        mitimpact = ch_mitimpact_zip
-        mitotip = ch_mitotip_zip
-        mane_json = ch_mane_json
-        napogee = ch_napogee_zip
-        panelapp_out = panelapp_out
-}
-
-output {
-    alphamissense {
-    }
-    bed {
-    }
-    merged_bed {
-    }
-    symbol_lookup {
-    }
-    clinvar_all {
-    }
-    clinvar_pm5 {
-    }
-    mane_json {
-    }
-    mitimpact {
-    }
-    mitotip {
-    }
-    napogee {
-    }
-    panelapp_out {
     }
 }

@@ -6,155 +6,123 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 
 ## Resource Configuration
 
-As a NextFlow workflow, the resourcing for the stages are set in the `nextflow.config` file. The default contents of this file
-contain low levels of resourcing, sufficient for running the test cases locally, but impractical for large scale work. The resources required for
-each workflow will vary widely depending on sequencing type (exome/genome) and number of samples, so an element of this is trial and error. This
-block outlines some important steps to provide extra resources for.
+This re-worked version of Talos removes the need to operate a large Spark cluster, instead running the majority of filter and labelling operations
+in streamed processes, running on fragments of the whole dataset, using efficient third-party tools. Instead of requiring large VMs, this changes
+to a map-reduce strategy to solve large data issues. As such, the need for large VMs to run individual steps is greatly reduced. You may still
+benefit from increasing memory, but it shouldn't be the hard requirement it was previously.
 
-| Stage                       | Workflow    | Suggestion             | Reasoning                                                                                                                                                                                                                                                                         |
-|:----------------------------|:------------|:-----------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ResummariseRawSubmissions   | Preparation | 16.GB memory, 4 CPUs   | Reasonably resource intensive local-spark operation on a genome-wide ClinVar dataset. Will fail if under resourced, but has a fixed ceiling                                                                                                                                       |
-| AnnotatedVcfIntoMatrixTable | Annotation  | High memory, High CPU  | This step runs in parallel across each fragment of the input VCF, parsing the VCF, reformatting annotations, and writing out a full MatrixTable representation. This runs as a local Spark instance, so resources should scale with the width (sample count) of the input callset |
-| RunHailFiltering            | Talos       | High memory, High CPU  | Runs across the whole MatrixTable, filtering large quantities of data. This would benefit from very high resources, both of memory and CPU.                                                                                                                                       |
+The standard process resourcing in the `nextflow.config` file should be sufficient for most users, with only a few steps
+given extra resource allocations:
+
+| Stage                   | Workflow      | Suggestion           | Reasoning                                                                                                                    |
+|:------------------------|:--------------|:---------------------|:-----------------------------------------------------------------------------------------------------------------------------|
+| AnnotateSvWithSvafotate | SV Annotation | 16.GB memory, 4 CPUs | SV Annotation may not be utilised by most users, but when required it involves loading a large reference object into memory. |
+| ValidateMOI             | Talos         | High memory          | Runs across the whole dataset, forming DataClass instances from each variant. In large cohorts this can run hot.             |
 
 Honorable mentions:
 
-`params.vcf_split_n` (default: `2500000`) is used to break up the input VCF into fragments, to annotate and process as parallel operations. For datasets with very high sample counts, reducing this value will create more fragments, better for the parallelised annotation workflow.
+`params.vcf_split_n` (default: `2500000`) is the target number of records per scatter region. Regions are derived from the VCF index (no physical split pass); each annotation task then reads only its region from the input VCF. For datasets with very high sample counts, reducing this value will create more regions, better for the parallelised annotation and filtering workflow. Setting it to `0` disables the scatter entirely.
 
 ---
 
 ## Workflow
 
-There are two primary entry points:
+There are two primary workflows:
 
-- `preparation.nf` — downloads and formats data in preparation for Talos runs.
-- `main.nf` — imports and executes the two sub-workflows (`annotation` + `Talos`) that comprise a full run.
+* `preparation.nf`: downloads and formats data in preparation for Talos runs.
+* `main.nf`: imports and executes the two sub-workflows which comprise the Talos runs - Annotation, and Analysis. Annotated outputs are idempotent, and can be re-used in future runs.
 
-And one secondary entrypoint:
+There are 3 main file paths you need to provide. The default locations for these are in the project root, but for real analyses you will want them to live outside the project folder:
 
-- `talos_only.nf` - runs the analysis portion of the workflow only, requires a previous completion of the `annotation` wf.
+* `params.large_files` or `--large_files`: the directory containing large raw annotation sources. This defaults to `large_files` in the project root for the test workflow to run, but for regular use this should be in a storage drive accessible to your HPC/Cloud/local compute environment. All workflows need to reference these files.
+* `params.processed_annotations` or `--processed_annotations`: the outputs of the preparation sub-workflow, which processes raw 'large files' into annotation-ready resources
+* `params.outdir` or `--outdir`: the root folder/bucket for the main workflow's per-cohort outputs. Required by `main.nf`, unused by `preparation.nf`, which always writes to `params.processed_annotations`.
 
----
-
-## 1. Install requirements
-
-You will need:
+### **1. Install Requirements**
 
 - [Nextflow](https://www.nextflow.io/docs/latest/install.html)
-- Docker (or a compatible container runtime)
 
-Build the Talos Docker image locally:
+- Docker
 
-```bash
-docker build -t talos:12.3.1 .
+To build the Docker image:
+
+```
+docker build -t talos:13.0.0 .
 ```
 
-> **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
->
-> To reduce container vulnerabilities, you can choose to build the Dockerfile on a more modern base, and with a later Java version. This is at your own risk, as the Hail version is not explicitly validated against this Java version.
+### **2. Download Annotation Resources**
 
+Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. The script [large_files/gather_files.sh](https://github.com/populationgenomics/talos/blob/main/large_files/gather_files.sh) will handle the download of all required resources.
 
-```bash
-docker build \
-    -f docker/Dockerfile \
-    --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
-    --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
-    -t talos:12.3.1 .
-```
+### **3. Run Preparation Workflow**
 
----
-
-## 2. Download annotation resources
-
-Talos requires several large external resources (reference genome, gnomAD, AlphaMissense, phenotype data). These are expected in a `large_files/` directory.
-
-See [`large_files/README.md`](https://github.com/populationgenomics/talos/blob/main/large_files/README.md) in the repository for the full list of sources, and the helper script [`large_files/gather_files.sh`](https://github.com/populationgenomics/talos/blob/main/large_files/gather_files.sh), which performs the initial download.
-
----
-
-## 3. Run the preparation workflow
-
-In addition to the raw downloads, Talos requires the following annotation sources to be kept up to date:
-
-- **ClinVar** data, formatted into Hail Tables.
-- **PanelApp** data, dumped to JSON.
-- **AlphaMissense** data, reformatted from the source TSV into a Hail Table.
-
-The `preparation.nf` sub-workflow handles all three:
+The preparations workflow transforms raw data into usable annotation sources. Most of these only need to be prepared once (MANE, GFF3, AlphaMissense), but the ClinVar and PanelApp data need to be downloaded once per month to keep the workflow up to date.
 
 ```bash
 nextflow \
     -c nextflow.config \
     run preparation.nf \
-    [--processed_annotations <path>] \
-    [--large_files <path>]
+    [--processed_annotations <processed_annotations_path>] \
+    [--large_files <large_files_path>]
 ```
 
-The `processed_annotations` parameter should point to a static directory where Talos-generated files will be stored. Files written here are reusable across all future Talos runs; they are not tied to any individual cohort or callset.
+### **4. Run Annotation & Talos Combined Workflow**
 
-!!! info "Recommended cadence"
-    Re-run `preparation.nf` on a regular schedule (e.g. monthly) so that ClinVar and PanelApp evidence stays current between Talos analyses. Talos is set up to complain and exit if ClinVar and PanelApp data wasn't prepared this month, as determined by the date built into the file names.
+> Cohort-specific inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
----
+The inputs for the Talos workflow are:
+- **cohort**: a collective name to identify the input/results, used in output directory and file naming
+- **path**: path to the Cohort's input data (VCF)
+- **type**: type of the input data, see below
+- **pedigree**: path to a Pedigree for the cohort, See details [here](Pedigree.md)
+- **config**: default available, path to the Talos config - see [example_config.toml](https://github.com/populationgenomics/talos/blob/main/src/talos/example_config.toml) for an example, and the [Configuration README](Configuration.md) for a full breakdown of all config parameters
+- **history**: optional, path to previous results
+- **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
+- **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
+- **mito**: optional, path to mitochondrial variants joint-called VCF
+- **sv**: optional, path to joint-called SV VCF
+- **sv_annotated**: optional, path to an already annotated SV VCF, which skips SV annotation. Mutually exclusive with `sv`, see [SV Annotation](SvAnnotation.md#pre-annotated-sv-vcfs)
 
-## 4. Prepare your input TSV
+The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
 
-From version `10.0.0` onwards, all per-cohort inputs are provided in a single TSV file via `--input_tsv`. Each row in the TSV represents one cohort, and the workflow runs them in parallel into separate output directories.
+#### Input Types 📂
 
-The optional columns (history, ext_ids, seqr_map, mito) can be omitted completely. If they are not provided, NextFlow defaults to a real but empty dummy file. See the provided example input file [here](https://github.com/populationgenomics/talos/blob/main/nextflow/inputs/test.tsv)
+The input TSV uses two columns to locate variant input; `path` and `type`. `path` is the location of the input file or directory. `type` is one of 3 values, **vcf, shards, ss_vcf_dir**
 
-| Column     | Required | Description                                                                    |
-|:-----------|:---------|:-------------------------------------------------------------------------------|
-| `cohort`   | yes      | Collective name used in output paths and file naming.                          |
-| `path`     | yes      | Path to the cohort's variant input.                                            |
-| `type`     | yes      | One of `vcf`, `shards`, or `ss_vcf_dir` (see below).                           |
-| `pedigree` | yes      | Path to the pedigree file. See [Pedigree & Phenotypes](Pedigree.md).           |
-| `config`   | yes      | Path to the cohort's Talos TOML config. See [Configuration](Configuration.md). |
-| `history`  | optional | Path to previous results, enabling reanalysis mode.                            |
-| `ext_ids`  | optional | ID mapping for alternate IDs in the HTML report.                               |
-| `seqr_map` | optional | ID mapping for Seqr hyperlinks in the HTML report.                             |
-| `mito`     | optional | Path to a joint-called mitochondrial VCF.                                      |
+1. **vcf** a single multisample VCF. This will be split into shards and processed in parallel.
+2. **shards** a directory of pre-sharded multisample VCF fragments, each shard containing all samples. The annotation and analysis workflows will be parallelised across these shards.
+3. **ss_vcf_dir** single-sample VCFs, to be merged in the workflow, then sharded. These are detected using a glob, with the file extension controlled by `params.input_vcf_extension` (defaults to "vcf.bgz")
 
-STR can be handled by Talos, but only data called by STRipy, and aggregated into a joint VCF format by the script `talos/scripts/stripy_json_to_vcf.py`.
+Outputs are written per cohort: annotation products (annotated VCF shards, a shard manifest, and the annotated SV VCF where relevant) to `{outdir}/{cohort}_annotated`, and analysis results to a dated `{outdir}/{cohort}_analysis_YYYYMMDD`. A proposed input TSV for the next reanalysis cycle, `talos_input_YYYYMMDD.tsv`, is written to the root of `{outdir}`. The output directory should be outside this repository.
 
-### Small-variant VCF input types
-
-<table>
-    <colgroup>
-        <col style="width: 8rem">
-        <col>
-    </colgroup>
-    <thead><tr><th>Type</th><th>Description</th></tr></thead>
-    <tbody>
-        <tr><td><code>vcf</code></td><td>A single multi-sample VCF; split into shards and processed in parallel.</td></tr>
-        <tr><td><code>shards</code></td><td>A directory of pre-sharded multi-sample VCF fragments, each shard containing all samples.</td></tr>
-        <tr><td><code>ss_vcf_dir</code></td><td>A directory of single-sample VCFs, merged then sharded inside the workflow. The glob extension is controlled by `params.input_vcf_extension` (defaults to `vcf.bgz`).</td></tr>
-    </tbody>
-</table>
-
----
-
-## 5. Run the annotation + Talos workflow
+The [main.nf](https://github.com/populationgenomics/talos/blob/main/main.nf) workflow runs annotation and analysis together. Annotation is skipped for any cohort whose shard manifest already exists in `{cohort}_annotated`, so the same command is used for the first run and for every reanalysis cycle:
 
 ```bash
 nextflow \
-    -c nextflow.config \
-    run main.nf \
-    --input_tsv nextflow/inputs/test.tsv \
-    -output-dir <path_to_output_dir>
+  -c nextflow.config \
+  run main.nf \
+  --input_tsv nextflow/inputs/test.tsv \
+  --processed_annotations <processed_annotations_path> \
+  --large_files <large_files_path> \
+  --outdir <path_to_output_dir>
 ```
 
-Results are written to `{workflow.outputDir}/{cohort}_outputs`. The annotation sub-workflow only needs to be run once per dataset — the resulting MatrixTables can be reused for every subsequent reanalysis cycle.
+>**For best results we advise repeating the Talos workflow on a regular cadence** — just re-run the command above; delete a cohort's `{cohort}_annotated` directory to force re-annotation (e.g. when MANE data is updated).
 
-For subsequent cycles after the data has already been annotated, use the Talos-only entry point:
+---
 
-```bash
-nextflow \
-    -c nextflow.config \
-    run talos_only.nf \
-    --input_tsv nextflow/inputs/test.tsv \
-    -output-dir <path_to_output_dir>
-```
+Outputs are split into two directories per cohort:
+
+* `{outdir}/{cohort}_annotated` — annotation products: the annotated VCF shards, a
+  `{cohort}_manifest.json` naming exactly the shards produced, and the annotated SV VCF where SV data was
+  supplied. The annotation sub-workflow only needs to be run once per dataset — these files are reused for every
+  subsequent reanalysis cycle, and the whole directory is safe to delete to force clean re-annotation without
+  touching any analysis results.
+* `{outdir}/{cohort}_analysis_YYYYMMDD` — analysis results (report HTML, results JSON, PanelApp
+  data, labelled VCFs), one directory per analysis date.
+
+For subsequent cycles, run the same `main.nf` command again: annotation is skipped for every cohort whose
+shard manifest is already present, and only the analysis stages re-run.
 
 !!! tip "Reanalysis cadence"
     For best results, re-run the Talos workflow on a regular cadence — monthly or quarterly is typical. See the [Reanalysis](Reanalysis.md) page for how prior results are folded into new runs.
@@ -178,7 +146,7 @@ Each variant carries reanalysis metadata (`first_seen`, `evidence_last_updated`)
 The first step of every Talos run is a `StartupChecks` module that validates inputs before any analysis begins:
 
 1. Confirms a config file is present and that all required entries exist with the correct types.
-2. Opens the MatrixTable and checks the schema and data types.
+2. Opens the VCF and checks the schema and data types, checking for overlap between the VCF samples and pedigree.
 3. Parses the pedigree file, validating its format and that affected participants are present.
 4. Checks the ClinVar data, ensuring it is recent and has sufficient entries.
 

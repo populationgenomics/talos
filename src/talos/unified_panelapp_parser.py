@@ -69,6 +69,8 @@ NEW_THRESHOLD = pendulum.now().subtract(months=WITHIN_X_MONTHS)
 EXPIRED_DOWNLOAD = pendulum.now().subtract(months=2)
 MOI_FOR_CUSTOM_GENES = 'Mono_And_Biallelic'
 CUSTOM_PANEL_ID = 0
+# genes on the custom panel are always treated as Green
+CUSTOM_PANEL_CONFIDENCE = 3
 
 
 def cli_main():
@@ -277,7 +279,9 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
         ('region', cached_panelapp.regions.values()),
     ]:
         for obj_data in obj_collection:
-            assert isinstance(obj_data, (DownloadedPanelAppStr, DownloadedPanelAppGene, DownloadedPanelAppRegion))
+            assert isinstance(obj_data, (DownloadedPanelAppStr, DownloadedPanelAppGene, DownloadedPanelAppRegion)), (
+                type(obj_data)
+            )
             # check if this entity is in any of the panels we are interested in - retain the overlap
             # also enforce the confidence threshold: skip panel associations below the configured level
             eligible_panels = {
@@ -376,6 +380,7 @@ def update_moi_from_config(
             logger.info(f'From custom data: setting {ensg} MOI to {moi}')
             panelapp_data.genes[ensg].moi = moi
             panelapp_data.genes[ensg].panels.add(CUSTOM_PANEL_ID)
+            panelapp_data.genes[ensg].panel_confidences[CUSTOM_PANEL_ID] = CUSTOM_PANEL_CONFIDENCE
 
         else:
             # if this is a new gene, add it to the dictionary
@@ -384,6 +389,7 @@ def update_moi_from_config(
                 symbol=gene_data.get('symbol', f'Custom: {ensg}'),
                 moi=moi,
                 panels={CUSTOM_PANEL_ID},
+                panel_confidences={CUSTOM_PANEL_ID: CUSTOM_PANEL_CONFIDENCE},
                 chrom=gene_data.get('chrom', 'chrUnknown'),
                 location=gene_data.get('location', 'Unknown'),
             )
@@ -427,7 +433,7 @@ def remove_pheno_match_only(panelapp_data: PanelApp, pheno_match: list[str]):
         ):
             if gene_details.panels == {DEFAULT_PANEL}:
                 genes_to_remove.add(ensg)
-            elif DEFAULT_PANEL in gene_details.panels:
+            else:
                 gene_details.panels.remove(DEFAULT_PANEL)
 
     for ensg, str_details in panelapp_data.strs.items():
@@ -445,7 +451,7 @@ def remove_pheno_match_only(panelapp_data: PanelApp, pheno_match: list[str]):
         ):
             if str_details.panels == {DEFAULT_PANEL}:
                 strs_to_remove.add(ensg)
-            elif DEFAULT_PANEL in str_details.panels:
+            else:
                 str_details.panels.remove(DEFAULT_PANEL)
 
     panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}
