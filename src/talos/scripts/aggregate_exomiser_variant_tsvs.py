@@ -17,7 +17,6 @@ from csv import DictReader
 
 from cloudpathlib.anypath import to_anypath
 
-
 ORDERED_ALLELES: list[str] = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 PROBAND_DICT = dict[str, dict[str, list[dict]]]
 
