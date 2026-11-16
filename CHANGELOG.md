@@ -46,12 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The default `errorStrategy` in `nextflow.config` read `process.maxRetries`, which is undefined when the closure runs. Every task failure threw instead of retrying. It now reads `task.maxRetries`, so failed tasks are retried up to 3 times with backoff
   * Mitochondrial variants never reached `ValidateMOI`: the labelled mito VCF was only read while iterating `chrM` on the small-variant VCF, and `chrM` was never iterated. The mito VCF is now read in its own pass, whatever the small-variant VCF header declares and whether the mito contig is named `chrM`, `MT` or `M`. Mito variants come only from the `mito` input; `chrM` records in the small-variant VCF are not analysed
   * X-linked compound hets in females were never found: comp-het pairing skipped every X pair, so `X_RecessiveFemaleCompHet` could never report. Female X pairs are now paired; males on X, and everyone on Y and mito, still aren't
+  * The `ValidateMOI` SV gnomAD filters (`gnomad_sv_max_af`, `dominant_gnomad_sv_max_af`) never filtered anything, as they read a gnomAD v2.1 field name. They now read the labelled SV VCF's `gnomad_sv_AF` (SVAFotate `Max_AF`)
+  * The report never showed an SV's gnomAD frequency or link, for the same reason. It now shows the AF, linked to the gnomAD v4 browser (`dataset=gnomad_sv_r4`) when SVAFotate found a qualifying gnomAD match
+  * The labelled SV VCF header declared every raw INFO field of the annotated input, though records only carry the curated set. It now declares only the curated fields, each with a description
 
 ## Removed
 
   * `params.annotated_dir`. Annotation products are always read from, and written to, `<outdir>/<cohort>_annotated`
   * The startup check comparing the output directory with `params.processed_annotations`
   * `workflow.output.mode` and `outputDir` from `nextflow.config`
+  * The `ValidateMOI.gnomad_max_hemizygotes` filter. It needed a gnomAD hemizygote count, which the whole-genome gnomAD echtvar zip (0.3.0) doesn't carry, so it never filtered anything. The key is ignored if still present in a config
 
 [0.6.0] - 2026-10
 

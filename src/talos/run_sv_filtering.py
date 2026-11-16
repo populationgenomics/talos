@@ -42,33 +42,35 @@ OUTPUT_FILTER_FIELDS = [
     {'ID': 'UNRESOLVED', 'Description': 'Variant is unresolved'},
 ]
 
-# INFO fields written to the labelled output, in order, as (ID, Number, Type)
+# INFO fields written to the labelled output, in order, as (ID, Number, Type, Description)
+# these are the only INFO fields the labelled output declares; a field already in the input header keeps its definition
 OUTPUT_INFO_FIELDS = [
-    ('AC', 'A', 'Integer'),
-    ('AF', 'A', 'Float'),
-    ('AN', '1', 'Integer'),
-    ('algorithms', '.', 'String'),
-    ('gnomad_sv_ID', '1', 'String'),
-    ('gnomad_sv_AF', '1', 'Float'),
-    ('bnd', '.', 'String'),
-    ('lof', '.', 'String'),
-    ('n_het', '1', 'Integer'),
-    ('n_homalt', '1', 'Integer'),
-    ('svlen', '1', 'Integer'),
-    ('svtype', '1', 'String'),
-    ('status', '1', 'String'),
-    ('end', '1', 'Integer'),
-    ('chr2', '1', 'String'),
-    ('end2', '1', 'Integer'),
-    ('male_af', 'A', 'Float'),
-    ('female_af', 'A', 'Float'),
-    ('bnd_ensg', '.', 'String'),
-    ('lof_ensg', '.', 'String'),
-    ('gene_id', '1', 'String'),
-    ('categorybooleansv1', '1', 'Integer'),
-    ('categorybooleanbnd', '1', 'Integer'),
-    ('categorybooleanregulatorycnv', '1', 'Integer'),
+    ('AC', 'A', 'Integer', 'Callset allele count'),
+    ('AF', 'A', 'Float', 'Callset allele frequency'),
+    ('AN', '1', 'Integer', 'Callset allele number'),
+    ('algorithms', '.', 'String', 'Calling algorithms, from ALGORITHMS (gCNV if absent)'),
+    ('gnomad_sv_ID', '1', 'String', 'gnomAD SV ID of the best qualifying match, from SVAFotate Best_gnomAD_ID'),
+    ('gnomad_sv_AF', '1', 'Float', 'gnomAD SV AF, the maximum across qualifying matches, from SVAFotate Max_AF'),
+    ('bnd', '.', 'String', 'Gene symbols with an exonic breakend, from PREDICTED_BREAKEND_EXONIC'),
+    ('lof', '.', 'String', 'Gene symbols with a predicted loss of function, from PREDICTED_LOF'),
+    ('n_het', '1', 'Integer', 'Callset heterozygous sample count, from N_HET'),
+    ('n_homalt', '1', 'Integer', 'Callset hom-alt sample count, from N_HOMALT'),
+    ('svlen', '1', 'Integer', 'SV length, from SVLEN'),
+    ('svtype', '1', 'String', 'SV type, from SVTYPE'),
+    ('status', '1', 'String', 'Variant status, from STATUS'),
+    ('end', '1', 'Integer', 'SV end position, from END'),
+    ('chr2', '1', 'String', 'Second contig of a BND/CTX, from CHR2'),
+    ('end2', '1', 'Integer', 'Position on the second contig, from END2'),
+    ('male_af', 'A', 'Float', 'Callset male AF, from MALE_AF or AF_MALE'),
+    ('female_af', 'A', 'Float', 'Callset female AF, from FEMALE_AF or AF_FEMALE'),
+    ('bnd_ensg', '.', 'String', 'Gene IDs with an exonic breakend'),
+    ('lof_ensg', '.', 'String', 'Gene IDs with a predicted loss of function'),
+    ('gene_id', '1', 'String', 'Green gene ID or PanelApp region name this row is labelled against'),
+    ('categorybooleansv1', '1', 'Integer', 'Predicted loss of function in a green gene'),
+    ('categorybooleanbnd', '1', 'Integer', 'Exonic breakend in a green gene'),
+    ('categorybooleanregulatorycnv', '1', 'Integer', 'CNV matching a PanelApp region'),
 ]
+OUTPUT_INFO_IDS = frozenset(field[0] for field in OUTPUT_INFO_FIELDS)
 
 
 def rearrange_annotations(
@@ -241,12 +243,27 @@ def prepare_output_header(reader: VCF) -> tuple[bool, tuple[str, ...]]:
 
     for filter_dict in OUTPUT_FILTER_FIELDS:
         reader.add_filter_to_header(filter_dict)
-    for field_id, number, field_type in OUTPUT_INFO_FIELDS:
+    for field_id, number, field_type, description in OUTPUT_INFO_FIELDS:
         if not header_has_field(reader, field_id):
             reader.add_info_to_header(
-                {'ID': field_id, 'Number': number, 'Type': field_type, 'Description': 'Talos SV annotation'},
+                {'ID': field_id, 'Number': number, 'Type': field_type, 'Description': description},
             )
     return header_has_field(reader, 'AF_MALE'), af_fields
+
+
+def curated_header(reader: VCF) -> str:
+    """
+    The reader's header with INFO definitions trimmed to OUTPUT_INFO_FIELDS, as every other INFO field is
+    deleted from the records before they're written. Every non-INFO line is kept.
+
+    The reader's own header can't be trimmed in place: it still has to parse the raw INFO fields of each record.
+    """
+    lines = []
+    for line in reader.raw_header.splitlines():
+        if line.startswith('##INFO=<ID=') and line.removeprefix('##INFO=<ID=').split(',', 1)[0] not in OUTPUT_INFO_IDS:
+            continue
+        lines.append(line)
+    return '\n'.join(lines) + '\n'
 
 
 def cli_main():
@@ -328,7 +345,8 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     uses_af_male_spelling, callset_af_fields = prepare_output_header(reader)
 
-    writer = Writer(vcf_out, reader, mode='wz')
+    # the writer has its own trimmed header, so each record is re-parsed against it before writing
+    writer = Writer.from_string(vcf_out, curated_header(reader), mode='wz')
 
     ac_threshold = config_retrieve(['RunSmallFiltering', 'callset_af_sv_recessive'])
 
@@ -367,7 +385,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
         for key in raw_info:
             del variant.INFO[key]
 
-        for field_id, _number, _type in OUTPUT_INFO_FIELDS:
+        for field_id, *_ in OUTPUT_INFO_FIELDS:
             value = info.get(field_id)
             if value is None:
                 continue
@@ -390,7 +408,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
             # second category introduced - exonic breakends
             variant.INFO['categorybooleanbnd'] = int(not is_region and bool(info['bnd']))
             variant.INFO['categorybooleanregulatorycnv'] = int(is_region)
-            writer.write_record(variant)
+            writer.write_record(writer.variant_from_string(str(variant).rstrip('\n')))
             kept += 1
 
     writer.close()

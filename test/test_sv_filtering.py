@@ -12,6 +12,7 @@ from loguru import logger
 
 from talos.models import GeneDetail, PanelApp, RegionDetail
 from talos.run_sv_filtering import (
+    OUTPUT_INFO_IDS,
     diploidise_genotypes,
     matching_regions,
     passes_af_filter,
@@ -252,6 +253,47 @@ class TestSvMain:
         # raw fields are not carried through
         assert variant.INFO.get('PREDICTED_LOF') is None
         assert variant.INFO.get('SVTYPE') is None
+
+    def test_labelled_header_declares_only_curated_info(self, tmp_path):
+        """raw INFO fields are deleted from every record, so their header definitions go too"""
+        self.run_sv(
+            tmp_path,
+            [
+                (
+                    'chr1\t1000\tsv_1\tN\t<DEL>\t50\tPASS\t'
+                    f'PREDICTED_LOF=GENE1;gnomad_v4.1_sv_AF=0.001;gnomad_v4.1_sv_SVID=gnomad-del-1;{COMMON_INFO}\tGT\t0/1'
+                ),
+            ],
+        )
+        reader = VCF(str(tmp_path / 'labelled.vcf.bgz'))
+        declared = {header['ID'] for header in reader.header_iter() if header['HeaderType'] == 'INFO'}
+        assert declared <= OUTPUT_INFO_IDS
+        assert {'gnomad_sv_AF', 'gnomad_sv_ID', 'categorybooleansv1'} <= declared
+        assert not declared & {'gnomad_v4.1_sv_AF', 'gnomad_v4.1_sv_SVID', 'PREDICTED_LOF', 'SVTYPE', 'MALE_AF'}
+        assert 'Max_AF' in reader.get_header_type('gnomad_sv_AF')['Description']
+        # non-INFO definitions survive
+        other = {(header['HeaderType'], header.info().get('ID')) for header in reader.header_iter()}
+        assert {('FILTER', 'UNRESOLVED'), ('FORMAT', 'GT')} <= other
+
+    def test_records_survive_sample_subsetting_and_diploidising(self, tmp_path):
+        """records are re-parsed against the trimmed header; subset samples and recast haploid calls are kept"""
+        header = SV_VCF_HEADER.replace('FORMAT\tmale\n', 'FORMAT\tnot_in_pedigree\tmale\n')
+        variants = self.run_sv(
+            tmp_path,
+            [
+                (
+                    'chr1\t1000\tsv_1\tN\t<DEL>\t50\tPASS\t'
+                    f'PREDICTED_LOF=GENE1;gnomad_v4.1_sv_AF=0.001;gnomad_v4.1_sv_SVID=gnomad-del-1;{COMMON_INFO}\tGT\t0/0\t1'
+                ),
+            ],
+            header=header,
+        )
+        (variant,) = variants
+        assert VCF(str(tmp_path / 'labelled.vcf.bgz')).samples == ['male']
+        # the haploid alt call is recast 1/1
+        assert variant.genotypes == [[1, 1, False]]
+        assert variant.INFO['gnomad_sv_ID'] == 'gnomad-del-1'
+        assert variant.INFO['gene_id'] == 'ENSG1'
 
     def test_frequency_fields_and_svlen_optional(self, tmp_path):
         """a caller with no AC/AF/AN/N_HET/N_HOMALT/per-sex AF/SVLEN is still labelled, with a warning"""

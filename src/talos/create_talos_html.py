@@ -50,9 +50,6 @@ KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 MEAN_SLASH_SAMPLE = 'Mean/sample'
 
-# reactive to different versions of gnomAD
-GNOMAD_POP = config_retrieve(['RunSvFiltering', 'gnomad_population'], 'gnomad_v4.1')
-
 # emoji source https://tools.picsart.com/text/emojis/
 CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
 REASON_EMOJIS = {
@@ -61,7 +58,16 @@ REASON_EMOJIS = {
     'pheno': '🎯',
     'green': '🚦',
 }
-GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
+
+# the labelled SV VCF's gnomAD SV ID (run_sv_filtering writes gnomad_sv_ID; INFO keys are lowercased on read)
+GNOMAD_SV_KEY = 'gnomad_sv_id'
+# SVAFotate IDs look like gnomAD-SV_v3_DEL_chr1_143f6519; the gnomAD browser wants DEL_chr1_143f6519
+GNOMAD_SV_ID_PREFIX = re.compile(r'^gnomAD-SV_v\d+_')
+
+
+def gnomad_sv_browser_id(svid: str) -> str:
+    """The gnomAD browser's ID for an SVAFotate gnomAD SV ID: gnomAD-SV_v3_DEL_chr1_143f6519 -> DEL_chr1_143f6519"""
+    return GNOMAD_SV_ID_PREFIX.sub('', svid)
 
 
 def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
@@ -703,13 +709,11 @@ class Variant:
 
         self.var_data.info['alpha_missense_max'] = max(am_scores) if am_scores else 'missing'
 
-        # this is the weird gnomad callset ID
-        if (
-            isinstance(self.var_data, StructuralVariant)
-            and GNOMAD_SV_KEY in self.var_data.info
-            and isinstance(self.var_data.info[GNOMAD_SV_KEY], str)
+        # the gnomAD browser's SV ID, used to build the link
+        if isinstance(self.var_data, StructuralVariant) and isinstance(
+            svid := self.var_data.info.get(GNOMAD_SV_KEY), str
         ):
-            self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]  # type: ignore[union-attr]
+            self.var_data.info['gnomad_key'] = gnomad_sv_browser_id(svid)
 
         # get the variant-level hyperlink
         if html_builder.link_engine:

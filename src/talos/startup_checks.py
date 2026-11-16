@@ -69,7 +69,6 @@ SCHEMA = {
         'callset_max_af': float,
         'callset_sv_max_af': float,
         'gnomad_max_homozygotes': int,
-        'gnomad_max_hemizygotes': int,
         'dominant_gnomad_max_af': float,
         'dominant_gnomad_sv_max_af': float,
         'dominant_gnomad_max_ac': int,

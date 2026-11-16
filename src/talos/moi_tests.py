@@ -17,8 +17,6 @@ from talos.models import VARIANT_MODELS, ReportVariant, ShortTandemRepeat, Small
 from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
-HEMI_CHROMS = {'chrX', 'chrY'}
-HEMI_CHROMS_STRIPPED = {'X', 'Y'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
@@ -55,10 +53,9 @@ class FrequencyFilter:
     # minimum variant AC before any callset frequency check is applied
     ac_min: ClassVar[int] = _cfg('min_callset_ac_to_filter')
 
-    # small variants: info-field -> max value, plus callset AF and (chrX/Y only) gnomAD hemizygote count
+    # small variants: info-field -> max value, plus callset AF
     small_gnomad: ClassVar[dict[str, float | int]] = {}
     small_callset_max_af: ClassVar[float | None] = None
-    small_gnomad_max_hemi: ClassVar[int | None] = None
 
     # SVs: info-field -> max value, plus callset AF and/or AC
     sv_gnomad: ClassVar[dict[str, float]] = {}
@@ -80,11 +77,9 @@ class FrequencyFilter:
             return False
 
         if isinstance(variant, SmallVariant):
-            return (
-                self._gnomad_too_common(variant, applied_moi, self.small_gnomad, self.label)
-                or self._callset_too_common(variant, applied_moi, self.small_callset_max_af, None, self.label)
-                or self._hemi_too_common(variant, applied_moi)
-            )
+            return self._gnomad_too_common(
+                variant, applied_moi, self.small_gnomad, self.label
+            ) or self._callset_too_common(variant, applied_moi, self.small_callset_max_af, None, self.label)
 
         if isinstance(variant, StructuralVariant):
             sv_label = f'{self.label}_sv'
@@ -162,22 +157,6 @@ class FrequencyFilter:
             return True
         return False
 
-    def _hemi_too_common(self, variant: VARIANT_MODELS, applied_moi: str | None) -> bool:
-        """On chrX/Y only, True if the gnomAD hemizygote count exceeds its maximum."""
-        if self.small_gnomad_max_hemi is None or variant.coordinates.chrom not in HEMI_CHROMS_STRIPPED:
-            return False
-
-        hemi_count = variant.info.get('gnomad_ac_xy', 0)
-        if hemi_count > self.small_gnomad_max_hemi:
-            self._record(
-                variant,
-                applied_moi,
-                'gnomad_ac_xy_too_high',
-                {'value': hemi_count, 'threshold': self.small_gnomad_max_hemi, 'filter': self.label},
-            )
-            return True
-        return False
-
 
 class GlobalFilter(FrequencyFilter):
     """Default thresholds, applied to non-ClinVar-Pathogenic variants under any MOI."""
@@ -188,7 +167,6 @@ class GlobalFilter(FrequencyFilter):
         'gnomad_homalt': _cfg('gnomad_max_homozygotes'),
     }
     small_callset_max_af = _cfg('callset_max_af')
-    small_gnomad_max_hemi = _cfg('gnomad_max_hemizygotes')
     sv_gnomad: ClassVar[dict[str, float]] = {'gnomad_sv_af': _cfg('gnomad_sv_max_af')}
     sv_callset_max_af = _cfg('callset_sv_max_af')
 

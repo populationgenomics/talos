@@ -99,7 +99,6 @@ Talos applies four distinct MOI filter models, each tailored to different varian
 | `callset_sv_max_af`        | Max intra-callset AF (Structural Variants)                     | 0.01    |
 | `gnomad_max_af`            | Max gnomAD 4.1 Combined AF                                     | 0.01    |
 | `gnomad_max_homozygotes`   | Max gnomAD 4.1 Combined Homozygotes                            | 5       |
-| `gnomad_max_hemizygotes`   | Max gnomAD 4.1 Combined Hemizygotes                            | 5       |
 | `gnomad_sv_max_af`         | Max gnomAD 4.1 Combined AF (Structural Variants)               | 5       |
 
 And finally, there are some further meta-parameters which control the variants being considered. These parameters are used to facilitate inclusion of less confident annotations (e.g. _in silico_ predictions) whilst preventing noise from these tools dominating the overall results:

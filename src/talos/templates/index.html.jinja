@@ -550,12 +550,12 @@
                     }
                     html += 'gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(gnomadId) + '?dataset=gnomad_r4" target="_blank"> AC:' + escapeHtml(String(variantData.info.gnomad_ac)) + ' AF: ' + escapeHtml(String(gnomadAf)) + '</a>';
                 } else if (rowData.variantType === 'StructuralVariant' && variantData.info.gnomad_key) {
-                    var svAfVal = variantData.info['gnomad_v2.1_sv_af'];
+                    var svAfVal = variantData.info.gnomad_sv_af;
                     var svAf = 'N/A';
                     if (svAfVal !== undefined && svAfVal !== null && !isNaN(parseFloat(svAfVal))) {
                         svAf = parseFloat(svAfVal).toFixed(5);
                     }
-                    html += 'gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r2_1" target="_blank">' + escapeHtml(String(svAf)) + '</a>';
+                    html += 'gnomAD 4.1 SV: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r4" target="_blank">AF: ' + escapeHtml(String(svAf)) + '</a>';
                 }
             }
             html += '</dd>';

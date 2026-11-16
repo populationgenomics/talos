@@ -5,11 +5,13 @@ tests relating to the MOI filters
 import pytest
 from mendelbrot.pedigree_parser import PedigreeParser
 
-from talos.models import Coordinates, SmallVariant
+from talos.models import Coordinates, SmallVariant, StructuralVariant
 from talos.moi_tests import (
     BaseMoi,
     ClinVarFilter,
     DominantAutosomal,
+    DominantFilter,
+    GlobalFilter,
     MOIRunner,
     RecessiveAutosomalCH,
     RecessiveAutosomalHomo,
@@ -1017,3 +1019,17 @@ def test_x_recessive_female_ch_from_find_comp_hets(pedigree_path: str):
         ('X_RecessiveFemaleCompHet', frozenset({'passing2'})),
         ('X_RecessiveFemaleCompHet', frozenset({'passing1'})),
     }
+
+
+@pytest.mark.parametrize(
+    ('gnomad_sv_af', 'global_filtered', 'dominant_filtered'),
+    [(0.005, False, False), (0.02, False, True), (0.05, True, True)],
+)
+def test_sv_gnomad_af_filters(gnomad_sv_af: float, global_filtered: bool, dominant_filtered: bool):
+    """gnomad_sv_af, as read from the labelled SV VCF, is filtered at gnomad_sv_max_af / dominant_gnomad_sv_max_af"""
+    sv = StructuralVariant(
+        coordinates=Coordinates(chrom='1', pos=1, ref='DEL', alt='5000'),
+        info={'gnomad_sv_af': gnomad_sv_af, 'gene_id': 'ENSG1'},
+    )
+    assert GlobalFilter().too_common(sv) is global_filtered
+    assert DominantFilter().too_common(sv) is dominant_filtered

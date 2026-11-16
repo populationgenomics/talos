@@ -82,7 +82,6 @@ callset_max_af = 0.01
 callset_sv_max_af = 0.03
 
 gnomad_max_homozygotes = 5
-gnomad_max_hemizygotes = 5
 
 # Dominant frequency filters - only applied to variants being considered for a dominant MOI.
 # Variants reported in ClinVar as P/LP are exempt from these filters
