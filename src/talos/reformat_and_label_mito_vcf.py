@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Takes a mito VCF annotated with BCFtools csq and echtvar (ClinVar, MitImpact, MitoTip, nAPOGEE), and
+Takes a mito VCF annotated with BCFtools csq and echtvar (ClinVar, MitoTip, MitImpact (nAPOGEE & APOGEE2)), and
 writes a labelled VCF containing only ClinVar P/LP variants in green mito genes.
 
 This is a streaming (cyvcf2) process - no Hail, no Spark. One variant is held in memory at a time.

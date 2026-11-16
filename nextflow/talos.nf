@@ -137,8 +137,8 @@ workflow TALOS {
             .map { cohort, panelapp_data, meta ->
                 tuple(cohort, meta.mito, panelapp_data, meta.pedigree, meta.config,
                       file(params.mitimpact_zip, checkIfExists: true),
-                      file(params.mitotip_zip, checkIfExists: true),
-                      file(params.napogee_zip, checkIfExists: true))
+                      file(params.mitotip_zip, checkIfExists: true)
+                )
             },
         ch_ref_genome,
         ch_gff,

@@ -2,7 +2,7 @@ process AnnotateMitoVcf {
     container params.container
 
     input:
-        tuple val(cohort), path(vcf), path(panelapp_data), path(pedigree), path(talos_config), path(mitimpact), path(mitotip), path(napogee)
+        tuple val(cohort), path(vcf), path(panelapp_data), path(pedigree), path(talos_config), path(mitimpact), path(mitotip)
         path ref_fa
         path gff3
         path clinvar_zip
@@ -33,7 +33,6 @@ process AnnotateMitoVcf {
 
         echtvar anno \
             -e ${clinvar_zip} \
-            -e ${napogee} \
             -e ${mitimpact} \
             -e ${mitotip} \
             "${cohort}_mito_csq_annotated.vcf.bgz" \

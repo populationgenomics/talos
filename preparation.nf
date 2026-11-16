@@ -26,7 +26,6 @@ include { EncodeAlphaMissense } from './nextflow/modules/prep/EncodeAlphaMissens
 include { EncodeClinvarEchtvar } from './nextflow/modules/prep/EncodeClinvarEchtvar/main'
 include { EncodeMitimpact } from './nextflow/modules/prep/EncodeMitimpact/main'
 include { EncodeMitotip } from './nextflow/modules/prep/EncodeMitotip/main'
-include { EncodeNapogee } from './nextflow/modules/prep/EncodeNapogee/main'
 include { MakeClinvarbitrationPm5 } from './nextflow/modules/prep/MakeClinvarbitrationPm5/main'
 include { ResummariseRawSubmissions } from './nextflow/modules/prep/ResummariseRawSubmissions/main'
 include { ParseManeIntoJson } from './nextflow/modules/prep/ParseManeIntoJson/main'
@@ -48,9 +47,6 @@ workflow {
     }
     if (!file(params.mitotip_zip).exists()) {
         EncodeMitotip(channel.fromPath(params.mitotip_tsv, checkIfExists: true))
-    }
-    if (!file(params.napogee_zip).exists()) {
-        EncodeNapogee(channel.fromPath(params.napogee_tsv, checkIfExists: true))
     }
 
     // does this month's clinvarbitration data exist?
