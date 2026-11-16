@@ -66,7 +66,8 @@ class Carriers(NamedTuple):
 
 
 PHASE_SET_DEFAULT = -2147483648
-NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
+# no comp-hets on Y or mito: hemizygous/haploid. X is handled per sample - female pairs are kept, male pairs skipped
+NO_COMP_HET_CHROMS = {'Y', 'MT', 'M'}
 X_CHROMOSOME = {'X'}
 # the mito contig name, as returned by vcf_streaming.normalise_chrom
 MITO_CHROM = 'M'
@@ -956,7 +957,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> 
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
         assert var_1.coordinates.chrom == var_2.coordinates.chrom
 
-        if (var_1.coordinates == var_2.coordinates) or var_1.coordinates.chrom in NON_HOM_CHROM:
+        if (var_1.coordinates == var_2.coordinates) or var_1.coordinates.chrom in NO_COMP_HET_CHROMS:
             continue
 
         # iterate over any samples with a het overlap

@@ -19,6 +19,7 @@ from talos.moi_tests import (
     XRecessiveFemaleHom,
     XRecessiveMale,
 )
+from talos.utils import find_comp_hets
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -989,3 +990,30 @@ def test_too_common_in_population_true_multi():
             transcript_consequences=[],
         ),
     )
+
+
+def test_x_recessive_female_ch_from_find_comp_hets(pedigree_path: str):
+    """
+    XRecessiveFemaleCH reports a female X comp-het when the pairing comes from find_comp_hets, not a hand-built dict
+    """
+    pedigree = PedigreeParser(pedigree_path)
+    variants = [
+        SmallVariant(
+            het_samples={'female'},
+            coordinates=coords,
+            ab_ratios={'female': 0.5},
+            alt_depths={'female': 25},
+            depths={'female': 50},
+            sample_categories=['categorysample4'],
+            info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': link, 'ac': 10, 'af': 0.0001},
+            transcript_consequences=[],
+        )
+        for coords, link in [(TEST_COORDS_X_1, 'passing1'), (TEST_COORDS_X_2, 'passing2')]
+    ]
+    comp_hets = find_comp_hets(variants, pedigree=pedigree)
+    x_rec = XRecessiveFemaleCH(pedigree=pedigree)
+    results = [result for variant in variants for result in x_rec.run(variant, comp_het=comp_hets)]
+    assert {(result.reasons, frozenset(result.support_vars)) for result in results} == {
+        ('X_RecessiveFemaleCompHet', frozenset({'passing2'})),
+        ('X_RecessiveFemaleCompHet', frozenset({'passing1'})),
+    }

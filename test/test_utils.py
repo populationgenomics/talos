@@ -4,6 +4,7 @@ test class for the utils collection
 
 from copy import deepcopy
 
+import pytest
 from cyvcf2 import VCFReader
 from mendelbrot.pedigree_parser import PedigreeParser
 
@@ -316,3 +317,39 @@ def test_annotate_dates_confidence_reset_when_not_found():
     variant = new.results['sam1'].variants[0]
     assert not variant.found_in_current_run
     assert not variant.confidence_increase
+
+
+def comp_het_pair(chrom: str, samples: set[str]) -> list[SmallVariant]:
+    """two het variants in the same gene on the given contig, carried by the given samples"""
+    return [
+        SmallVariant(
+            coordinates=Coordinates(chrom=chrom, pos=pos, ref='G', alt='T'),
+            het_samples=samples,
+            info={'gene_id': 'TEST1'},
+            transcript_consequences=[],
+        )
+        for pos in (1, 2)
+    ]
+
+
+def test_comp_hets_x_female(pedigree_path: str):
+    """a female het for two X variants gets a comp-het pair"""
+    var_1, var_2 = comp_het_pair('X', {'female'})
+    ch_dict = find_comp_hets([var_1, var_2], pedigree=PedigreeParser(pedigree_path))
+    assert ch_dict['female'] == {
+        var_1.coordinates.string_format: [var_2],
+        var_2.coordinates.string_format: [var_1],
+    }
+
+
+def test_comp_hets_x_male(pedigree_path: str):
+    """a male het for two X variants (hemizygous, so a miscall) gets no comp-het pair; a female in the same call does"""
+    ch_dict = find_comp_hets(comp_het_pair('X', {'male', 'female'}), pedigree=PedigreeParser(pedigree_path))
+    assert 'male' not in ch_dict
+    assert 'female' in ch_dict
+
+
+@pytest.mark.parametrize('chrom', ['Y', 'M', 'MT'])
+def test_comp_hets_never_on_y_or_mito(chrom: str, pedigree_path: str):
+    """no comp-hets on haploid contigs, whatever the sample's sex"""
+    assert not find_comp_hets(comp_het_pair(chrom, {'male', 'female'}), pedigree=PedigreeParser(pedigree_path))
