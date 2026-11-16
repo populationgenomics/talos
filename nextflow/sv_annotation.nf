@@ -78,8 +78,13 @@ workflow SV_ANNOTATION {
         tuple(row[0], annotated, tbi)
     }
 
+    // row[1] is a Path - resolve the index as its sibling, interpolating it into a string would drop gs://
     ch_pending_vcfs = ch_branched.pending.map { row ->
-        tuple(row[0], row[1], file("${row[1]}.tbi", checkIfExists: true), row[3])
+        def tbi = row[1].resolveSibling("${row[1].name}.tbi")
+        if (!tbi.exists()) {
+            error("SV VCF for ${row[0]} has no index: ${tbi.toUriString()}")
+        }
+        tuple(row[0], row[1], tbi, row[3])
     }
 
     // the config and annotated dir travel with each cohort, and are only needed for the (published) rename step

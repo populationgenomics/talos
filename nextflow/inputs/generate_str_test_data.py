@@ -39,14 +39,10 @@ Run from the repository root:
 """
 
 import json
-import os
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-
-# write_multisample_vcf looks up an optional locus allow-list via config_retrieve, which needs a config path
-os.environ.setdefault('TALOS_CONFIG', str(Path(__file__).parent / 'config.toml'))
 
 from talos.scripts.stripy_json_to_vcf import write_multisample_vcf
 

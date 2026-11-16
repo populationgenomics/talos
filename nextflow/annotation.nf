@@ -104,7 +104,8 @@ workflow ANNOTATION {
     // Process single-sample components
     ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, _type, _pedigree, _annotated_dir ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
-        def tbis = vcfs.collect { vcf -> file("${vcf}.tbi") }
+        // sibling resolution, not string interpolation - interpolating a cloud Path drops gs://
+        def tbis = vcfs.collect { vcf -> vcf.resolveSibling("${vcf.name}.tbi") }
         tuple(cohort, vcfs, tbis)
     }
 

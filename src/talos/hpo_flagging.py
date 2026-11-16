@@ -21,6 +21,10 @@ from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
+DEFAULT_SEMANTIC_MATCH = False
+# as documented in docs/Configuration.md
+DEFAULT_MIN_SIMILARITY = 14.0
+
 
 def get_sem_client(phenio_db: str | None = None) -> Semsimian:
     """
@@ -84,21 +88,58 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
     return ensgs
 
 
+def semantic_match_enabled() -> bool:
+    """HPOFlagging.semantic_match - one lookup, so client setup and matching can't disagree on the default"""
+    return config_retrieve(['HPOFlagging', 'semantic_match'], DEFAULT_SEMANTIC_MATCH)
+
+
+def semantic_matches(participant_hpos: set[str], gene_hpos: set[str], min_similarity: float) -> set[str]:
+    """
+    gene HPO terms semantically similar to the participant's, via Semsimian
+
+    Args:
+        participant_hpos (set[str]): the participant's HPO IDs
+        gene_hpos (set[str]): HPO IDs associated with the variant's gene
+        min_similarity (float): ancestor information content a match must exceed
+
+    Returns:
+        set[str], labels as 'HP:ID: label'
+    """
+    termset_similarity = get_sem_client().termset_pairwise_similarity(participant_hpos, gene_hpos)
+    # Convert object terms (gene_phenotypes) to lookup dict
+    object_termset = {
+        term_dict['id']: term_dict['label']
+        for term in termset_similarity['object_termset']
+        for term_dict in term.values()
+    }
+
+    # Find all phenotype matches that meet the min_score threshold
+    return {
+        f'{match["object_id"]}: {object_termset[match["object_id"]]}'
+        for match in termset_similarity['subject_best_matches']['similarity'].values()
+        if float(match['ancestor_information_content']) > min_similarity
+    }
+
+
 def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, set[str]]):
     """
     for each variant, find any phenotype matches between the participant and gene HPO sets
 
-    checks config for HPOFlagging.strict (bool)
-    if strict, this will test for an exact overlap
-    if strict is False, this will be done semantically via Semsimian
+    An exact overlap of HPO terms always counts as a match. If HPOFlagging.semantic_match is set, semantically
+    similar terms (via Semsimian) are added on top. The first time any match is found, the variant gets today's
+    date as its date_of_phenotype_match - history is applied in ValidateMOI, before this stage, so a date already
+    present is from an earlier cycle and is kept.
 
     Args:
         result_object (ResultData):
         gen_phen (dict): mapping of ENSGs to relevant HPO terms
     """
-    semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
+    semantic_match = semantic_match_enabled()
 
-    min_similarity: float = config_retrieve(['HPOFlagging', 'min_similarity'])
+    # only consulted for semantic matching, so only required for it
+    min_similarity: float = DEFAULT_MIN_SIMILARITY
+    if semantic_match:
+        min_similarity = config_retrieve(['HPOFlagging', 'min_similarity'], DEFAULT_MIN_SIMILARITY)
 
     for participant in result_object.results.values():
         participant_hpos_dict = {hpo.id: hpo.label for hpo in participant.metadata.phenotypes}
@@ -108,36 +149,21 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
             var_gene = variant.var_data.info['gene_id']
             gene_hpos = gen_phen.get(var_gene, set())  # type: ignore[arg-type]
 
-            # under strict matching we require exact overlapping terms
-            # we always run a strict match
-            for hpo_id in participant_hpos & gene_hpos:
-                variant.phenotype_labels.add(f'{hpo_id}: {participant_hpos_dict[hpo_id]}')
+            # an exact overlap always counts
+            matches = {f'{hpo_id}: {participant_hpos_dict[hpo_id]}' for hpo_id in participant_hpos & gene_hpos}
 
-            # optionally also use semantic matching for phenotypic similarity
-            if participant_hpos and gene_hpos and semantic_match:
-                termset_similarity = get_sem_client().termset_pairwise_similarity(participant_hpos, gene_hpos)
-                # Convert object terms (gene_phenotypes) to lookup dict
-                object_termset = {
-                    term_dict['id']: term_dict['label']
-                    for term in termset_similarity['object_termset']
-                    for term_dict in term.values()
-                }
+            # semantic matches are added on top of the exact ones, never in place of them
+            if semantic_match and participant_hpos and gene_hpos:
+                matches |= semantic_matches(participant_hpos, gene_hpos, min_similarity)
 
-                # Find all phenotype matches that meet the min_score threshold
-                pheno_matches = {
-                    f'{match["object_id"]}: {object_termset[match["object_id"]]}'
-                    for match in termset_similarity['subject_best_matches']['similarity'].values()
-                    if float(match['ancestor_information_content']) > min_similarity
-                }
+            # don't assign a date if there are no matches
+            if not matches:
+                continue
 
-                # skip if no matches - don't assign a date if there are no matches
-                if not pheno_matches:
-                    continue
+            variant.phenotype_labels |= matches
 
-                if variant.date_of_phenotype_match is None:
-                    variant.date_of_phenotype_match = get_granular_date()
-
-                variant.phenotype_labels = pheno_matches
+            if variant.date_of_phenotype_match is None:
+                variant.date_of_phenotype_match = get_granular_date()
 
 
 def remove_phenotype_required_variants(result_object: ResultData):
@@ -221,10 +247,10 @@ def main(
     # for each gene, identify the HPO terms that are associated with it
     gen_phen_dict = parse_genes_to_hpo(gen2phen, gene_map, genes=relevant_ensgs)
 
-    # unless strict, set up the client with a phenio file
+    # only semantic matching needs the client - set it up with the phenio file here
     # this is a bit hacky, but means we don't need to pass the phenio path around
-    if not config_retrieve(['HPOFlagging', 'strict'], False):
-        _semsim = get_sem_client(phenio_db=phenio)
+    if semantic_match_enabled():
+        get_sem_client(phenio_db=phenio)
 
     # label phenotype matches, and write the results to a JSON file
     annotate_phenotype_matches(results, gen_phen_dict)
