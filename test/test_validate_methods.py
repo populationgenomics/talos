@@ -2,6 +2,11 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
+import gzip
+from pathlib import Path
+
+import pytest
+from cyvcf2 import VCFReader
 from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.models import (
@@ -14,7 +19,9 @@ from talos.models import (
     StructuralVariant,
 )
 from talos.static_values import get_granular_date
+from talos.utils import canonical_contigs_from_vcf
 from talos.validate_moi import count_families, filter_results_to_panels, prepare_results_shell, set_up_moi_filters
+from talos.validate_moi import main as validate_moi_main
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -303,3 +310,88 @@ def test_regions_in_moi_filters_and_panel_filtering(pedigree_path: str):
     )
     assert len(results_holder.results['sam1'].variants) == ONE_EXPECTED
     assert results_holder.results['sam1'].variants[0].max_confidence == 3
+
+
+# test/input/1_labelled_variant.vcf.bgz, minus the chrM contig header line
+NO_MITO_CONTIG_VCF = str(Path(__file__).parent / 'input' / 'labelled_no_mito_contig.vcf.bgz')
+
+MITO_GENE = 'ENSG00000198888'
+MITO_INFO = (
+    'AC=1;AN=6;gnomad_af=0;gnomad_ac=0;gnomad_hom=0;clinvar_stars=1;categoryboolean1=1;categoryboolean3=0;'
+    f'categorysample4=missing;categorydetailsPM5=missing;gene_id={MITO_GENE};'
+    'CSQ=missense_variant|MT-ND1|ENSG00000198888|ENST00000361390||protein_coding|||||||SNV||||||'
+)
+TRIO_CALLS = '0/1:10,90:100:99\t0/0:100,0:100:99\t0/0:100,0:100:99'
+
+
+def vcf_header(vcf_path: str) -> list[str]:
+    """the header lines of a bgzipped VCF"""
+    with gzip.open(vcf_path, 'rt') as handle:
+        return [line.rstrip('\n') for line in handle if line.startswith('#')]
+
+
+def write_mito_vcf(tmp_path: Path, header: list[str], contig: str) -> str:
+    """a plain-text, unindexed labelled mito VCF with one het proband call, on the named contig"""
+    header = [line for line in header if not line.startswith('##contig=<ID=chrM,')]
+    header.insert(-1, f'##contig=<ID={contig},length=16569>')
+    record = '\t'.join([contig, '3460', '.', 'G', 'A', '50', 'PASS', MITO_INFO, 'GT:AD:DP:GQ', TRIO_CALLS])
+    mito_path = tmp_path / 'mito.vcf'
+    mito_path.write_text('\n'.join([*header, record]) + '\n')
+    return str(mito_path)
+
+
+def run_validate_moi_with_mito(tmp_path: Path, pedigree_path: str, small_vcf: str, mito_vcf: str) -> ResultData:
+    panel_path = tmp_path / 'panelapp.json'
+    panel_path.write_text(
+        PanelApp(
+            metadata={137: {'id': 137, 'name': 'Mendeliome'}},
+            genes={
+                MITO_GENE: {'symbol': 'MT-ND1', 'moi': 'Mitochondrial', 'panels': {137}, 'panel_confidences': {137: 3}},
+            },
+            participants={'male': {'panels': {137}}},
+        ).model_dump_json(),
+    )
+    output = tmp_path / 'results.json'
+    validate_moi_main(
+        labelled_vcf=small_vcf,
+        output=str(output),
+        panelapp_path=str(panel_path),
+        pedigree=pedigree_path,
+        labelled_mito=mito_vcf,
+    )
+    return ResultData.model_validate_json(output.read_text())
+
+
+@pytest.mark.parametrize('small_declares_mito', [True, False])
+@pytest.mark.parametrize('mito_contig', ['chrM', 'MT', 'M'])
+def test_mito_vcf_reaches_validate_moi(
+    tmp_path: Path,
+    pedigree_path: str,
+    two_trio_variants_vcf: str,
+    small_declares_mito: bool,
+    mito_contig: str,
+):
+    """
+    the labelled mito VCF is read whatever the small-variant VCF header declares, and however the mito contig is named
+    """
+    mito_vcf = write_mito_vcf(tmp_path, vcf_header(two_trio_variants_vcf), mito_contig)
+    small_vcf = two_trio_variants_vcf if small_declares_mito else NO_MITO_CONTIG_VCF
+
+    results = run_validate_moi_with_mito(tmp_path, pedigree_path, small_vcf, mito_vcf)
+
+    mito_results = [var for var in results.results['male'].variants if var.gene == MITO_GENE]
+    assert len(mito_results) == ONE_EXPECTED
+    assert mito_results[0].reasons == 'Mitochondrial'
+    assert mito_results[0].var_data.coordinates.pos == 3460
+
+
+def test_mito_contig_is_not_a_small_variant_contig(two_trio_variants_vcf: str):
+    """
+    chrM is declared in the small-variant VCF header, but is never iterated on the small-variant VCF:
+    mito variants come only from the dedicated mito VCF, so can't be analysed twice
+    """
+    reader = VCFReader(two_trio_variants_vcf)
+    assert 'chrM' in reader.seqnames
+    contigs = canonical_contigs_from_vcf(reader)
+    assert 'chrM' not in contigs
+    assert {'chr1', 'chr22', 'chrX', 'chrY'} <= contigs

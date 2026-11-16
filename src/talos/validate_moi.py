@@ -43,6 +43,7 @@ from talos.utils import (
     canonical_contigs_from_vcf,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    gather_gene_dict_from_mito,
     generate_summary_stats,
     polish_exomiser_results,
     read_json_from_path,
@@ -499,6 +500,17 @@ def main(
             result_list.extend(
                 apply_moi_to_variants(
                     variant_dict=contig_dict,
+                    moi_lookup=moi_lookup,
+                    panelapp_data=panelapp.genes | panelapp.regions,
+                    pedigree=ped,
+                ),
+            )
+
+        # mito variants come only from the dedicated mito VCF, independent of the small-variant VCF's contigs
+        if 'mito' in source_vcfs:
+            result_list.extend(
+                apply_moi_to_variants(
+                    variant_dict=gather_gene_dict_from_mito(source_vcfs['mito'], ped_samples=ped_samples),
                     moi_lookup=moi_lookup,
                     panelapp_data=panelapp.genes | panelapp.regions,
                     pedigree=ped,

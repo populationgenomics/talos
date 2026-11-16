@@ -39,6 +39,7 @@ from talos.models import (
     translate_category,
 )
 from talos.static_values import get_granular_date
+from talos.vcf_streaming import normalise_chrom
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -67,6 +68,8 @@ class Carriers(NamedTuple):
 PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 X_CHROMOSOME = {'X'}
+# the mito contig name, as returned by vcf_streaming.normalise_chrom
+MITO_CHROM = 'M'
 
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 TODAY = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d_%H:%M')
@@ -701,11 +704,14 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
     read the header fields from the VCF handle
     return a set of all 'canonical' contigs
 
+    chrM is deliberately excluded: mito variants only come from the dedicated mito VCF (gather_gene_dict_from_mito),
+    matching MakeScatterRegions, which drops chrM from the small-variant shards
+
     Args:
         reader (cyvcf2.VCFReader):
     """
 
-    # contig matching regex - remove all HLA/decoy/unknown
+    # contig matching regex - remove all HLA/decoy/unknown/mito
     contig_re = re.compile(r'^(chr)?[0-9XY]{1,2}$')
 
     return {
@@ -730,7 +736,8 @@ def gather_gene_dict_from_contig(
     Args:
         contig (): contig name from VCF header
         variant_sources (): dict mapping each variant type to a VCF reader instance
-                            known types: small, sv, mito (chrM only), str
+                            known types: small, sv, str. A 'mito' source is ignored here,
+                            see gather_gene_dict_from_mito
         panelapp (PanelApp): PanelApp details parsed for this run
         ped_samples (set[str]): set of samples present in the Pedigree
 
@@ -793,20 +800,45 @@ def gather_gene_dict_from_contig(
 
         logger.info(f'Contig {contig} contained {str_variants} STRs')
 
-    # special segment for mito data - if Mito is provided and chrM is being searched, provide variants
-    if contig == 'chrM' and variant_sources.get('mito'):
-        mito_samples = variant_sources['mito'].samples
-        mito_variants = 0
-        for variant in variant_sources['mito'](contig):
-            if mito_var := create_small_variant(var=variant, samples=mito_samples, ped_samples=ped_samples):
-                mito_variants += 1
-                contig_dict[mito_var.info['gene_id']].append(mito_var)
-
-        logger.info(f'Mito VCF contained {mito_variants} variants')
-
     logger.info(f'Contig {contig} contained {contig_variants} variants, in {len(contig_dict)} genes')
 
     return contig_dict
+
+
+def gather_gene_dict_from_mito(mito_reader: 'cyvcf2.VCFReader', ped_samples: set[str]) -> GeneDict:
+    """
+    Read every variant in the labelled mito VCF into a gene lookup.
+
+    The whole file is streamed rather than fetched by contig name, so this doesn't depend on the mito contig being
+    declared in the small-variant VCF header, on how it's named (chrM/MT/M), or on an index
+
+    Args:
+        mito_reader (cyvcf2.VCFReader): the labelled mito VCF
+        ped_samples (set[str]): set of samples present in the Pedigree
+
+    Returns:
+        {gene: [var1, var2], ...}
+    """
+
+    mito_dict: GeneDict = defaultdict(list)
+    mito_samples = mito_reader.samples
+    mito_variants = 0
+    off_contig = 0
+    for variant in mito_reader:
+        if normalise_chrom(variant.CHROM) != MITO_CHROM:
+            off_contig += 1
+            continue
+
+        if mito_var := create_small_variant(var=variant, samples=mito_samples, ped_samples=ped_samples):
+            mito_variants += 1
+            mito_dict[mito_var.info['gene_id']].append(mito_var)
+
+    if off_contig:
+        logger.warning(f'Mito VCF contained {off_contig} non-mitochondrial records, ignored')
+
+    logger.info(f'Mito VCF contained {mito_variants} variants, in {len(mito_dict)} genes')
+
+    return mito_dict
 
 
 def read_json_from_path(read_path: str | None = None, default: Any = None, return_model: Any = None) -> Any:
@@ -889,9 +921,10 @@ def extract_csq(csq_contents: str) -> list[dict]:
     txc_dicts = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
 
     # update this String to be either a float, or missing
+    # missing is '' not None: the SmallVariant model doesn't accept None, and mito consequences never carry a score
     for each_dict in txc_dicts:
         am_path = each_dict.get('am_pathogenicity')
-        each_dict['am_pathogenicity'] = float(am_path) if am_path else None  # type: ignore[assignment]
+        each_dict['am_pathogenicity'] = float(am_path) if am_path else ''  # type: ignore[assignment]
 
         # update the BCFtools amino acid change with an HGVS reinterpretation
         csq_string = str(each_dict['consequence'])
@@ -1069,6 +1102,10 @@ def generate_summary_stats(result_set: ResultData):
 
         # iterate over all identified variants
         for each_var in sample_results.variants:
+            # don't count variants passed-through in the history
+            if not each_var.found_in_current_run:
+                continue
+
             var_string = each_var.var_data.coordinates.string_format
 
             # catch all comp-het pairs as a single variant - we are electing to count comp-het events as a single
