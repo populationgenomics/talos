@@ -56,7 +56,7 @@ Talos supports phenotype-driven filtering using **HPO terms**. See [Pedigree & P
 
 ### Matching strategies
 
-- **Patient-to-Gene** — semantic similarity between patient HPO terms and gene annotations.
+- **Patient-to-Gene** — shared or semantically similar terms between patient HPO terms and gene annotations, within HPO's _Phenotypic abnormality_ subtree.
 - **Patient-to-Panel** — PanelApp panels are assigned to a patient when their terms match the panel's HPO tags.
 - **Cohort-to-Panel** — manually assign panels to all individuals in a cohort via config.
 

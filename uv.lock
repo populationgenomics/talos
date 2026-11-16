@@ -2826,34 +2826,6 @@ wheels = [
 ]
 
 [[package]]
-name = "semsimian"
-version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/25/e8899cba85953b726f704f52f3b63c431ba9058e8fcc17a671dcb3acd6f1/semsimian-0.3.0-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:54c5005a3fdd5fa204f29d37983289edd8f0abce0eb0e29d98c827104240198b", size = 2877346, upload-time = "2026-02-20T17:36:27.681Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/49/362e8e730c6f23b1f5baecbaade314b9d895ccea4599c37951c2630bb0c0/semsimian-0.3.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:faa8d7e0abbc6c29064ddbb6c8b9f15af64f34378b6a323412d81ff38ab63900", size = 1486823, upload-time = "2026-02-20T17:36:29.605Z" },
-    { url = "https://files.pythonhosted.org/packages/cf/83/44aaf5de4cbac005aee6683b90a40c7ff589875c5008a7143bfc1b7a1257/semsimian-0.3.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:50ba19b520f2fc129fb92e8b85db83700501a5fd2895d3b65763dbbb8f64c9b4", size = 1410744, upload-time = "2026-02-20T17:36:31.559Z" },
-    { url = "https://files.pythonhosted.org/packages/75/7c/aef26cec4c19b8618124573aeb9107c74635eae879f3752aec4432b44c9f/semsimian-0.3.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8e2d3e7cb148b143ca2935b9c37984849f582989d05503dc52fc796123f143fa", size = 1557003, upload-time = "2026-02-20T17:36:32.658Z" },
-    { url = "https://files.pythonhosted.org/packages/81/14/24aee9562d7d9f3e4a8e81a14aeb42d433affa968dfa0e63d0f90e05ab32/semsimian-0.3.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:28e2104d739bdce63157d6a427516ee76372078083dd70bdd6d3d0072529fced", size = 1716551, upload-time = "2026-02-20T17:36:34.016Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/cf/5d7f306dec038da13ce7ac62f71267871c85bbbbf27c84494caf8bb91639/semsimian-0.3.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:8486e70d1c311c25621e7f05c01c6f71742e3b437280931f48dba206dbba9574", size = 1799439, upload-time = "2026-02-20T17:36:35.554Z" },
-    { url = "https://files.pythonhosted.org/packages/79/32/2151a8cbdbc28829277e402559a10dcff5b8baf68b022e772ceea6ff5db6/semsimian-0.3.0-cp310-cp310-win_amd64.whl", hash = "sha256:eeab9827e7bc87ccfe7f1e5d7a4e0697c18cc01fb64c9030c6394de950e3216d", size = 1351116, upload-time = "2026-02-20T17:36:37.545Z" },
-    { url = "https://files.pythonhosted.org/packages/c8/e4/b93f33ea2147da1fcf4e68eedf37e703480afd98d567becbe0673eec213d/semsimian-0.3.0-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:cabf8699f77606b372609f672a9534aefd228d1fdf3fa20f53b70d61abbc3e65", size = 2876982, upload-time = "2026-02-20T17:36:39.178Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/5b/8b2175fdf339fce2971ae914c301b4290dc68591beacc5a18cf5ca0bef8e/semsimian-0.3.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:03f0f54d08242627d103ee0170f12ff675bc3c23aaafa2573b4e73ec94ed063c", size = 1486451, upload-time = "2026-02-20T17:36:40.522Z" },
-    { url = "https://files.pythonhosted.org/packages/62/b1/45f339a819f6ed336d370357fdaf264d904b0b362d5c682a26c95abad848/semsimian-0.3.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:20ed3801b8e47ebd2426052ee4bf185461a17c7d2574434ef4b05936c6ed6519", size = 1410463, upload-time = "2026-02-20T17:36:41.62Z" },
-    { url = "https://files.pythonhosted.org/packages/27/23/efa092866152c2e7905a841ec838d1c75ed9e6cd593eac821cb0f0cbc2bd/semsimian-0.3.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e24138b86f4a2492b80485f843efb866df6627cc5e82e865cce953ffa8b089bf", size = 1556882, upload-time = "2026-02-20T17:36:43.082Z" },
-    { url = "https://files.pythonhosted.org/packages/83/4e/6a26ccf909217f97829ad8dd30883112d4b76d40c1e4b968afa338927d8d/semsimian-0.3.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:3d0ab88352a98cb7a3feeec962bc4678ad5dbe8b2ad02ccb8db1e56bc3389aa6", size = 1716300, upload-time = "2026-02-20T17:36:44.512Z" },
-    { url = "https://files.pythonhosted.org/packages/68/3a/674e2973b852515342c9a297bd337cb7530656a43b21de31e9678b9473ee/semsimian-0.3.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:7e5855ab7f847b16ac2c44543f07ac11367f572751ade9565b860ea4f38b429e", size = 1799303, upload-time = "2026-02-20T17:36:45.829Z" },
-    { url = "https://files.pythonhosted.org/packages/c6/44/316910dcfb3c3e9f39857e25dc6c68777dee93b3b50bc475fa8748b1c34c/semsimian-0.3.0-cp311-cp311-win_amd64.whl", hash = "sha256:bb943b817c2e11fc11858f36ff7a3d9271820330bc5d834132ad00f4f442c3a5", size = 1351079, upload-time = "2026-02-20T17:36:46.935Z" },
-    { url = "https://files.pythonhosted.org/packages/fb/7a/9f58df35100ce39eb9f27ecd3445fd590ef0ea3c1aed8e75f30936dd16a7/semsimian-0.3.0-cp312-cp312-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:6cd5c179d0dc00fa0c56ed2379dcbfed5358ebdb336dbf5aa23b77a2818fe75a", size = 2875002, upload-time = "2026-02-20T17:36:48.901Z" },
-    { url = "https://files.pythonhosted.org/packages/25/7e/8778e0e5fcd09e03a559b026222a739fb8a79b99f3e61d395cbbcad018d0/semsimian-0.3.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:e8d1276a2a138b3177743d58d97afafd5094bcd06e1b4d008d1be934028f976d", size = 1485044, upload-time = "2026-02-20T17:36:50.254Z" },
-    { url = "https://files.pythonhosted.org/packages/0d/44/0cb7e5ffded7fdffadf5065df7afba9e8f51912742be283f2d362eb9ea9e/semsimian-0.3.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:eef3ed0dd7db576bf7a1948ea7cfc572a6b73a0195c67dc8cf096d305da8a075", size = 1407758, upload-time = "2026-02-20T17:36:51.334Z" },
-    { url = "https://files.pythonhosted.org/packages/35/b6/e221510171c10241dc1fc13ea1d752eed41058950feac9e6725b0b2a11c1/semsimian-0.3.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:623ccb753455600630a8e405a1e7648b28d984d2cd9f58a291f3ccd1db61655f", size = 1555401, upload-time = "2026-02-20T17:36:53.347Z" },
-    { url = "https://files.pythonhosted.org/packages/27/d3/18ae51df82475cb257222c4cc87522132172c1ececbbe97d7bbaa214e29a/semsimian-0.3.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:e8b6e855ae79c4d82da059059a9461bcc9c581c8730c7a7031f97fd51683c1ce", size = 1714967, upload-time = "2026-02-20T17:36:54.466Z" },
-    { url = "https://files.pythonhosted.org/packages/1a/07/546d8e8423168a923467ddffaea9f743b80219aa6f57dafaf2f780e6a086/semsimian-0.3.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:39ee15a86015c21dd9c94112b16c2116e3ef233c05935f7348f66bb29cb2e283", size = 1797709, upload-time = "2026-02-20T17:36:56.27Z" },
-    { url = "https://files.pythonhosted.org/packages/06/4e/ecd2ed9834e2fd0f90868380add660de7d8c188b0892a526d34e2e1e8777/semsimian-0.3.0-cp312-cp312-win_amd64.whl", hash = "sha256:935bc68fdd60a16d6148a184d46fe80dda0fa37b23bb4e9c9a28f10f25924dcc", size = 1351019, upload-time = "2026-02-20T17:36:57.376Z" },
-]
-
-[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2904,7 +2876,6 @@ dependencies = [
     { name = "pendulum" },
     { name = "pydantic" },
     { name = "python-dateutil" },
-    { name = "semsimian" },
     { name = "tabulate" },
     { name = "tenacity" },
     { name = "toml" },
@@ -2961,7 +2932,6 @@ requires-dist = [
     { name = "pytest-httpx", marker = "extra == 'test'" },
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.6.0" },
     { name = "python-dateutil", specifier = ">=2" },
-    { name = "semsimian" },
     { name = "svafotate-cpg", marker = "extra == 'sv'", git = "https://github.com/MattWellie/svafotate" },
     { name = "tabulate", specifier = ">=0.8.9" },
     { name = "tenacity", specifier = ">=9.0.0" },

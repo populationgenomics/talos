@@ -22,5 +22,4 @@ The `gather_files.sh` script downloads the following:
 4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.5.summary.txt.gz` from the [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5).
 5. Predictions for AlphaMissense, e.g. `AlphaMissense_hg38.tsv.gz` from https://zenodo.org/records/8208688.
 6. `genes_to_phenotypes.txt` and `hp.obo` from `https://github.com/obophenotype/human-phenotype-ontology/releases`
-7. `phenio.db` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz, then decompressed
-8. Raw ClinVar Variant and Submission summaries
+7. Raw ClinVar Variant and Submission summaries

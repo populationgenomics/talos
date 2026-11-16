@@ -141,17 +141,6 @@ ECHTVAR_FILE="gnomad_4.1_22297079_GRCh38_whole_genome"
 start_download https://zenodo.org/records/22297079/files/gnomad_4.1_whole_genome.zip?download=1 "${ECHTVAR_FILE}" "\
 Downloading Echtvar from https://zenodo.org/records/22297079"
 
-# Monarch phenotype DB - another large download. 17GB decompressed
-COMPRESSED_PHENIO="phenio.db.gz"
-DECOMPRESSED_PHENIO="phenio.db"
-if [ ! -f "${DECOMPRESSED_PHENIO}" ]; then
-  log "[INFO] phenio.db not found, downloading..."
-  # using a specific dated folder, as-of 16-11-2026 the 'latest' upload is broken
-  start_download https://data.monarchinitiative.org/monarch-kg/2026-10-07/phenio.db.gz
-else
-  log "[INFO] phenio.db already exists, skipping download."
-fi
-
 # GRCh38 reference genome
 GRCh38="ref.fa.gz"
 GRCh38_decompressed="ref.fa"
@@ -234,12 +223,6 @@ fi
 if [ ! -f "${GRCh38_decompressed}" ] && [ -f "${GRCh38}" ]; then
     log "Decompressing reference Fasta"
     gunzip ${GRCh38}
-fi
-
-# same for the phenio files
-if [ ! -f "${DECOMPRESSED_PHENIO}" ] && [ -f "${COMPRESSED_PHENIO}" ]; then
-    log "Decompressing Phenio.db"
-    gunzip ${COMPRESSED_PHENIO}
 fi
 
 # rinse the Ensembl GFF3 file through a chrMT -> chrM rename

@@ -1,0 +1,64 @@
+format-version: 1.2
+data-version: hp/releases/test
+ontology: hp.obo
+
+[Term]
+id: HP:0000001
+name: All
+
+[Term]
+id: HP:0000118
+name: Phenotypic abnormality
+is_a: HP:0000001 ! All
+
+[Term]
+id: HP:0000005
+name: Mode of inheritance
+is_a: HP:0000001 ! All
+
+[Term]
+id: HP:0000006
+name: Autosomal dominant inheritance
+is_a: HP:0000005 ! Mode of inheritance
+
+[Term]
+id: HP:0000707
+name: Abnormality of the nervous system
+is_a: HP:0000118 ! Phenotypic abnormality
+
+[Term]
+id: HP:0012638
+name: Abnormal nervous system physiology
+is_a: HP:0000707 ! Abnormality of the nervous system
+
+[Term]
+id: HP:0001250
+name: Seizure
+alt_id: HP:0001275
+is_a: HP:0012638 ! Abnormal nervous system physiology
+
+[Term]
+id: HP:0007359
+name: Focal-onset seizure
+is_a: HP:0001250 ! Seizure
+
+[Term]
+id: HP:0002069
+name: Bilateral tonic-clonic seizure
+is_a: HP:0001250 ! Seizure
+
+[Term]
+id: HP:0000478
+name: Abnormality of the eye
+is_a: HP:0000118 ! Phenotypic abnormality
+
+[Term]
+id: HP:0000505
+name: Visual impairment
+is_a: HP:0000478 ! Abnormality of the eye
+
+[Term]
+id: HP:0009999
+name: obsolete Epileptic fits
+is_obsolete: true
+replaced_by: HP:0001250

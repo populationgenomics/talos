@@ -33,7 +33,6 @@ workflow TALOS {
     // we open them as a channel, and pass the channel through to the method
     ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true).first()
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true).first()
-    ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
@@ -169,7 +168,7 @@ workflow TALOS {
                 tuple(cohort, talos_result_json, panelapp_data, meta.config, meta.analysis_dir)
             },
         ch_gen2phen,
-        ch_phenio,
+        ch_hpo_file,
         timestamp,
     )
 

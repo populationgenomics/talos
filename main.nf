@@ -12,14 +12,18 @@ nextflow.enable.dsl=2
     2. SV_ANNOTATION: Annotates a joint-called SV VCF, for each cohort with an `sv` VCF.
     3. TALOS: Runs the core Talos analysis/filtering/reporting.
 
-    Annotation (small-variant and SV alike) is idempotent: cohorts whose annotation products are
-    already published (keyed on the shard manifest / annotated SV VCF) are reused, not re-annotated.
-    A reanalysis cycle is simply re-running this workflow; delete a cohort's `${cohort}_annotated`
-    directory to force re-annotation.
+    Annotation (small-variant and SV alike) is idempotent: cohorts whose annotation products are already published
+    (keyed on the shard manifest / annotated SV VCF) are reused, not re-annotated. A reanalysis cycle is simply
+    re-running this workflow; delete a cohort's `${cohort}_annotated` directory to force re-annotation.
 
-    Outputs are published with publishDir, not workflow outputs - see docs/adr/0001. This entrypoint
-    decides each cohort's output directories and passes them down in the cohort tuples; nothing below
-    it knows the output layout.
+    Outputs are published with publishDir, not 'workflow outputs'. This cuts against the indicated direction of
+    travel for NextFlow - "The publishDir directive will continue to be supported, but will be deprecated.".
+    For CPG and the general public to run the same version of Talos, it must match up to our operational requirements
+    of each 'cohort' being analysed writing to its segregated bucket. Workflow Outputs only accepts a single output
+    bucket for a whole analysis, which is incompatible. The CPG entrypoint (./cpg_main.nf) builds a separate output path
+    per input row, and uses that to decide where outputs are written to. For public use this currently only permits one
+    output directory/bucket, with cohort data segregated within it. If a separate bucket per analysis row matches your
+    requirements, the plumbing exists, please raise an issue and we can discuss your use case.
 
     Usage:
     nextflow run main.nf --input_tsv [path] --outdir [path] [other params...]
