@@ -84,24 +84,22 @@ Analyses are looked up on the cohort's Metamist project (completed, active), fil
 `meta.sequencing_type` unless stated otherwise. The newest one by completion time is used, and partial-dataset
 outputs (paths containing `_families-`) are skipped.
 
-| **Column**     | **Source**                                                                                                     | **Required** |
-|----------------|----------------------------------------------------------------------------------------------------------------|--------------|
-| `path`         | Analysis type `vcf`, `meta.stage = TalosDatasetVcf`. **Placeholder** until the seqr-loader release that writes it | yes          |
-| `pedigree`     | Generated from the project pedigree, filtered to the cohort's SGs, with HPO terms as a 7th column              | yes, per SG  |
-| `ext_ids`      | Generated: `SG ID <tab> participant external ID`                                                               | -            |
-| `config`       | Generated: see [Config](#config)                                                                               | -            |
+| **Column**     | **Source**                                                                                                       | **Required** |
+|----------------|------------------------------------------------------------------------------------------------------------------|--------------|
+| `path`         | Analysis type `dataset_vcf`, `meta.stage = TalosDatasetVcf`.                                                     | yes          |
+| `pedigree`     | Generated from the project pedigree, filtered to the cohort's SGs, with HPO terms as a 7th column                | yes, per SG  |
+| `ext_ids`      | Generated: `SG ID <tab> participant external ID`                                                                 | -            |
+| `config`       | Generated: see [Config](#config)                                                                                 | -            |
 | `seqr_map`     | Generated: `{SG ID: seqr family GUID}`, if the project's meta has `is_seqr` and `seqr-project-<sequencing_type>` | no           |
-| `sv_annotated` | Analysis type `single_dataset_sv_annotated`, genome only, not filtered on sequencing type                      | no           |
-| `mito`         | Analysis type `vcf`, `meta.stage = GenerateMitoJointCall`                                                      | no           |
-| `str`          | Analysis type `vcf`, `meta.stage = MakeStripyJointCall`                                                        | no           |
-| `history`      | Analysis type `aip-results`. Talos v1 results are lifted forward on read                                       | no           |
+| `sv_annotated` | Analysis type `single_dataset_sv_annotated`, genome only, not filtered on sequencing type                        | no           |
+| `mito`         | Analysis type `vcf`, `meta.stage = GenerateMitoJointCall`                                                        | no           |
+| `str`          | Analysis type `vcf`, `meta.stage = MakeStripyJointCall`                                                          | no           |
+| `history`      | Analysis type `aip-results`. Talos v1 results are lifted forward on read                                         | no           |
 
 A missing small-variant VCF, or an SG with no pedigree entry, fails the run. Optional inputs are left blank
 when they're absent. The analysis types and stages are constants at the top of the generator.
 
-Exome gCNV isn't supported. Exome cohorts have no SV input.
-
-The dataset-wide small-variant VCF is subset to the pedigree's samples during annotation, so only the
+ The dataset-wide small-variant VCF is subset to the pedigree's samples during annotation, so only the
 cohort's samples are annotated and stored (see [Pedigree & Phenotypes](Pedigree.md)). The pre-annotated SV,
 mito and STR VCFs aren't subset in Nextflow. Each filtering stage reads only the pedigree's samples.
 

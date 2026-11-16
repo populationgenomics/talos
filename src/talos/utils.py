@@ -517,7 +517,7 @@ def create_str_variant(
     """Takes a variant row from an STR 'joint-call', and parses into a Variant object."""
 
     ignored_categories = get_categories_translated('ignore_categories')
-    if 'categorybooleanstr' in ignored_categories:
+    if 'str' in ignored_categories:
         return None
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref='STR', alt=var.ID)

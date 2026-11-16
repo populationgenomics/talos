@@ -16,8 +16,7 @@ def resultdata(data_dict: dict) -> dict:
     for _sample, content in data_dict['results'].items():
         for variant in content['variants']:
             # this attribute isn't exported by default, so allow it to be missing
-            if 'sample_support' in variant:
-                _ = variant['var_data'].pop('sample_support')
+            variant['var_data'].pop('sample_support', None)
 
             # the list of categories which are being treated as support for this run
             variant['var_data']['support_categories'] = []

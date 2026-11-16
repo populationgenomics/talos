@@ -603,6 +603,31 @@ def test_two_green_genes_exploded(tmp_path, monkeypatch):
         assert csq_dict['gene_id'] == info['gene_id']
 
 
+@pytest.mark.parametrize(
+    ('biotypes', 'coding_gene'),
+    [
+        (('protein_coding', 'lncRNA'), 'ENSG_GREEN'),  # empty gene second: would inherit the first gene's csq
+        (('lncRNA', 'protein_coding'), 'ENSG_OTHER'),  # empty gene first: nothing to clear yet
+    ],
+)
+def test_gene_without_retained_csqs_has_no_csq(tmp_path, monkeypatch, biotypes, coding_gene):
+    """
+    one gene's only transcript is lncRNA, so it has no retained consequences - its row is still written
+    (ClinVar P/LP), and must not carry the other gene's csq from the shared record
+    """
+    two_genes = (
+        f'{bcsq(transcript="ENST03", biotype=biotypes[0])},'
+        f'{bcsq(gene="GENE2", transcript="ENST02", biotype=biotypes[1])}'
+    )
+    output = run_streaming(tmp_path, monkeypatch, [make_row(f'BCSQ={two_genes};{BASE_INFO};{PLP_INFO}')])
+    assert [info['gene_id'] for info in output] == ['ENSG_GREEN', 'ENSG_OTHER']
+    for info in output:
+        if info['gene_id'] == coding_gene:
+            assert dict(zip(CSQ_STRING_CONFIG, info['csq'].split('|'), strict=True))['gene_id'] == coding_gene
+        else:
+            assert 'csq' not in info
+
+
 def test_pm5_annotation(tmp_path, monkeypatch):
     output = run_streaming(
         tmp_path,

@@ -701,7 +701,7 @@ LIFTOVER_METHODS: dict = {
 
 def lift_up_model_version(
     data: dict,
-    model: ResultData | PanelApp | DownloadedPanelApp,
+    model: type[ResultData | PanelApp | DownloadedPanelApp],
 ) -> dict:
     """
     lift over data from one version to another

@@ -604,8 +604,12 @@ def write_gene_rows(
 
         for key, value in categories.items():
             variant.INFO[key] = value
+        # every gene row reuses one record - set or clear csq on each, or a gene with no retained consequences
+        # inherits the previous gene's
         if gene_csqs:
             variant.INFO['csq'] = consequences_to_csq_string(gene_csqs)
+        elif variant.INFO.get('csq') is not None:
+            del variant.INFO['csq']
         variant.INFO['gene_id'] = gene_id
         ctx.writer.write_record(variant)
         written += 1

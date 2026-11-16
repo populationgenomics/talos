@@ -10,6 +10,8 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.models import (
     Coordinates,
+    ParticipantMeta,
+    ParticipantResults,
     ReportVariant,
     ResultData,
     SmallVariant,
@@ -19,6 +21,7 @@ from talos.utils import (
     annotate_variant_dates_using_prior_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    generate_summary_stats,
     get_non_ref_samples,
 )
 
@@ -353,3 +356,39 @@ def test_comp_hets_x_male(pedigree_path: str):
 def test_comp_hets_never_on_y_or_mito(chrom: str, pedigree_path: str):
     """no comp-hets on haploid contigs, whatever the sample's sex"""
     assert not find_comp_hets(comp_het_pair(chrom, {'male', 'female'}), pedigree=PedigreeParser(pedigree_path))
+
+
+def summary_variant(pos: int, category: str, *, current: bool) -> ReportVariant:
+    return ReportVariant(
+        sample='sam1',
+        var_data=SmallVariant(
+            coordinates=Coordinates(chrom='1', pos=pos, ref='A', alt='C'),
+            info={},
+            transcript_consequences=[],
+        ),
+        categories={category: get_granular_date()},
+        found_in_current_run=current,
+    )
+
+
+def test_summary_stats_skip_history_only_variants():
+    """variants carried forward from history, but not found this cycle, are not counted"""
+    meta = ParticipantMeta(ext_id='sam1', family_id='fam1')
+    results = ResultData(
+        results={
+            'sam1': ParticipantResults(
+                metadata=meta,
+                variants=[summary_variant(1, '1', current=True), summary_variant(2, '6', current=False)],
+            ),
+            # every variant history-only - counted as zero, but this sample still has (history) variants
+            'sam2': ParticipantResults(metadata=meta, variants=[summary_variant(3, '6', current=False)]),
+        },
+    )
+    generate_summary_stats(results)
+    breakdown = results.metadata.variant_breakdown
+
+    assert breakdown['any']['total'] == ONE_EXPECTED
+    assert breakdown['1']['total'] == ONE_EXPECTED
+    assert '6' not in breakdown
+    # two samples considered, one with a current variant
+    assert breakdown['any']['mean'] == 0.5
