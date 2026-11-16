@@ -146,7 +146,8 @@ COMPRESSED_PHENIO="phenio.db.gz"
 DECOMPRESSED_PHENIO="phenio.db"
 if [ ! -f "${DECOMPRESSED_PHENIO}" ]; then
   log "[INFO] phenio.db not found, downloading..."
-  start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
+  # using a specific dated folder, as-of 16-11-2026 the 'latest' upload is broken
+  start_download https://data.monarchinitiative.org/monarch-kg/2026-10-07/phenio.db.gz
 else
   log "[INFO] phenio.db already exists, skipping download."
 fi
@@ -169,7 +170,7 @@ start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5/M
 # Ensembl GFF3 data
 GFF3_ORIGINAL="Homo_sapiens.GRCh38.116.chr.gff3.gz"
 GFF3_chrM_RENAMED="Homo_sapiens.GRCh38.116.MTtoM.gff3.gz"
-start_download https://ftp.ensembl.org/pub/release-116/vertebrates/gff3/homo_sapiens/Homo_sapiens.GRCh38.116.chr.gff3.gz
+start_download https://ftp.ensembl.org/pub/release-116/gff3/homo_sapiens/Homo_sapiens.GRCh38.116.chr.gff3.gz
 
 # Jax lab file for phenotype matching
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/hp.obo
@@ -177,11 +178,12 @@ start_download https://github.com/obophenotype/human-phenotype-ontology/releases
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/genes_to_phenotype.txt
 
 # mitochondrial annotations
-start_download https://www.fr.mitomap.org/downloads/mitotip_scores.txt
+start_download https://www.mitomap.org/downloads/mitotip_scores.txt
 
-start_download "https://mitimpact.mcb2lab.org/cdn/nAPOGEE_v1.0.0.txt.zip"
-
-start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
+# MitImpact 3.1.3 has been superseded by MitImpact 4 (comma-delimited CSV inside the zip).
+# this single ZIP archive contains both the nAPOGEE and APOGEE2 data
+# https://mitimpact.mcb2lab.org/downloads
+start_download "https://mitimpact.mcb2lab.org/static/downloads/MitImpact4_V059.zip"
 
 # AlphaMissense raw data
 AM="AlphaMissense_hg38.tsv.gz"
