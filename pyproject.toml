@@ -8,8 +8,7 @@ description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
 version="13.0.0"
 
-# pinned below python 3.13 for compatibility with semsimian
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.15"
 
 license-files = ["LICENSE"]
 
