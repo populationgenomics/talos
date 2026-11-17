@@ -113,12 +113,12 @@ And finally, there are some further meta-parameters which control the variants b
 
 ## Stage: `HPOFlagging`
   * Config Section: `HPOFlagging`
-  * Description: Controls the phenotypic matching between genes and HPO terms by Semsimian, used to draw attention to variants in the report.
+  * Description: Controls the phenotypic matching between participant and gene HPO terms, used to draw attention to variants in the report. Gene terms come from HPO's `genes_to_phenotype.txt`, the hierarchy from `hp.obo` (Nextflow `params.gen2phen` and `params.hpo`). Only terms within the _Phenotypic abnormality_ subtree (HP:0000118) are compared - modes of inheritance, onset and other clinical modifiers never produce a match. Alt IDs, and obsolete IDs with a replacement, are mapped to their current term. A term shared by the participant and the gene is always a match.
 
-| Field            | Purpose                                                                                                | Default |
-|------------------|--------------------------------------------------------------------------------------------------------|---------|
-| `semantic_match` | If True, run a semantic match between gene and proband HPO terms. If False, do a pure set intersection | True    |
-| `min_similarity` | If `semantic_match`, this is the minumum required similarity when comparing termsets using Semsimian   | 14.0    |
+| Field                      | Purpose                                                                                                                                                                                                                                                                                               | Default |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| `semantic_match`           | If True, each participant term without an exact match is also matched to its most similar gene term. Similarity is Resnik's: two terms are as similar as their most specific shared ancestor term, the fewer descendants that ancestor has the more specific it is. If False, only exact matches count | False   |
+| `max_ancestor_descendants` | If `semantic_match`, a participant and gene term match when their most specific shared ancestor has at most this many descendant terms in HPO, counting itself. 25 approximates the `min_similarity = 14.0` previously used with Semsimian and Phenio, which this replaced                            | 25      |
 
 ## Stage: `CreateTalosHTML`
   * Config Section: `CreateTalosHTML`

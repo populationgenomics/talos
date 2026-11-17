@@ -16,6 +16,11 @@ fields are lifted back onto the full-width shard with bcftools annotate - see An
 
 Everything here is cohort-agnostic and cacheable. Output is the annotated VCF shards themselves -
 MANE and ClinVar are applied in the per-run workflow, where the labelling happens.
+
+Noted once to prevent repetition - file paths are kept as Path types and resolve()'d to correctly build cloud
+or local paths. Interpolating a cloud Path into a string dropped the scheme prefix (e.g. gs://), so an exists()
+check silently ran against the local filesystem. To prevent this resolve() is used to maintain correct URIs, and
+resolveSibling() is used for an adjacency check on a cloud or local file (e.g. index alongside VCF)
 */
 
 include { AnnotateShard } from './modules/annotation/AnnotateShard/main'
@@ -57,8 +62,7 @@ workflow ANNOTATION {
 		ch_gff
 		ch_ref_genome
 		// one entry per cohort: [cohort, path, type, pedigree, annotated_dir] - the input is cut down to the
-		// pedigree's samples as it is normalised. annotated_dir is where this cohort's annotation products are
-		// published, and where earlier ones are looked for
+		// pedigree's samples as it is normalised. annotated_dir is where this cohort's annotation products are published
 		ch_inputs
 
     main:
@@ -69,13 +73,12 @@ workflow ANNOTATION {
     }
     ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true).first()
 
+    // Pre-formatted, this must be downloaded from Zenodo using the large_files/gather_files.sh script
     ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true).first()
 
     // skip annotation entirely for cohorts whose shard manifest already exists - reuse the
     // published shards instead. Annotation is expensive and its inputs stable; delete the
     // cohort's annotated directory to force re-annotation
-    // keep this a Path and resolve() against it - interpolating a cloud Path into a string
-    // drops the gs:// scheme, so the exists() check silently ran against the local filesystem
     ch_reuse_branched = ch_inputs.branch { row ->
         complete: file(row[4]).resolve("${row[0]}_manifest.json").exists()
         pending:  true
@@ -95,16 +98,15 @@ workflow ANNOTATION {
         single_vcf: row[2] == 'vcf'
     }
 
-    // Process shards
+    // Process shards - a pre-split joint-called VCF (e.g. a callset divided by Contigs)
     ch_from_shards = ch_inputs_branched.shards.flatMap { cohort, path, _type, _pedigree, _annotated_dir ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
         vcfs.collect { vcf -> tuple(cohort, vcf) }
     }
 
-    // Process single-sample components
+    // Entrypoint for single-sample VCFs which are merged then annotated within the workflow
     ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, _type, _pedigree, _annotated_dir ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
-        // sibling resolution, not string interpolation - interpolating a cloud Path drops gs://
         def tbis = vcfs.collect { vcf -> vcf.resolveSibling("${vcf.name}.tbi") }
         tuple(cohort, vcfs, tbis)
     }
@@ -119,8 +121,6 @@ workflow ANNOTATION {
     ch_single_vcfs = ch_inputs_branched.single_vcf.map { cohort, path, _type, _pedigree, _annotated_dir ->
         tuple(cohort, file(path, checkIfExists: true))
     }
-    // sibling resolution stays on the Path object. Interpolating a cloud path into a string
-    // drops the gs:// scheme, which sent every indexed input down the re-index branch as the index wasn't local
     ch_singles_branched = ch_single_vcfs.branch { row ->
         indexed: row[1].resolveSibling("${row[1].name}.tbi").exists()
         unindexed: true
@@ -136,9 +136,8 @@ workflow ANNOTATION {
     // Combine single VCFs and merged VCFs, as [cohort, vcf, tbi]
     ch_whole_vcfs = ch_singles_indexed.mix(ch_merged_vcfs)
 
-    // the scatter is virtual: derive density-weighted regions from the index alone (the VCF is
-    // never staged for this), then fan the whole VCF out across them - each NormaliseVcf task
-    // reads only its region's blocks through the tbi
+    // Use the index of the input VCF to derive approximately density-weighted intervals to scatter over, then
+    // fan the whole VCF out across them - each NormaliseVcf task reads only its region's blocks through the tbi
     if ((params.vcf_split_n ?: 0) > 0) {
         MakeScatterRegions(ch_whole_vcfs.map { cohort, _vcf, tbi -> tuple(cohort, tbi) })
         ch_regions = MakeScatterRegions.out
@@ -159,7 +158,7 @@ workflow ANNOTATION {
     // combine (not join) - every region of a cohort repeats that cohort's pedigree
     ch_pedigrees = ch_reuse_branched.pending.map { row -> tuple(row[0], row[3]) }
 
-	NormaliseVcf(
+	  NormaliseVcf(
         ch_all_vcfs.combine(ch_pedigrees, by: 0),
         ch_ref_genome,
     )

@@ -8,8 +8,7 @@ description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
 version="13.0.0"
 
-# pinned below python 3.13 for compatibility with semsimian
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.15"
 
 license-files = ["LICENSE"]
 
@@ -38,7 +37,6 @@ dependencies=[
     'pendulum>=3.1.0',
     'pydantic>=2.5.2',
     'python-dateutil>=2',
-    'semsimian',
     'tabulate>=0.8.9',
     'tenacity>=9.0.0',
     'toml==0.10.2',

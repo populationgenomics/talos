@@ -121,7 +121,7 @@ phenotype_match = ["alphamissense"]
 
 [HPOFlagging]
 semantic_match = true
-min_similarity = 14.0
+max_ancestor_descendants = 25
 
 [CreateTalosHTML]
 remove_solved_cases = true

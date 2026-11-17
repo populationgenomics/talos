@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The annotation → SV annotation → analysis wiring moved out of `main.nf` into a shared `TALOS_PIPELINE` workflow (`nextflow/talos_pipeline.nf`), which takes one row per cohort with its output directories. `main.nf` now only validates params, builds those rows from the input TSV, and writes the next-cycle TSV. Process names gain a `TALOS_PIPELINE:` prefix, so `-resume` won't reuse tasks cached by earlier runs
   * SV annotation is decided per input TSV row instead of by whether the TSV has an `sv` column. The SV reference data (`svafotate_bed`, `mane_gtf`, `svannotate_noncoding_bed`) is now required for every run
   * Some TOML config sections renamed from their Hail versions (e.g. RunHailFiltering -> RunSmallFiltering)
+  * `HPOFlagging` no longer uses Semsimian or the 17GB Monarch Phenio DB. Semantic phenotype matching is computed directly from `hp.obo`, already staged for `UnifiedPanelAppParser`, which keeps the ontology on the same HPO release as `genes_to_phenotype.txt`. `params.phenio_db` and the `semsimian` dependency are removed, and `gather_files.sh` no longer downloads Phenio
+  * `HPOFlagging.min_similarity` is replaced by `HPOFlagging.max_ancestor_descendants` (default 25, which approximates the old 14.0): a participant and gene term are a semantic match when their most specific shared ancestor has at most this many descendant terms in HPO. A `min_similarity` left in config is ignored, with a warning
+  * Phenotype matching, exact or semantic, only compares terms within HPO's _Phenotypic abnormality_ subtree, so modes of inheritance and onset terms no longer produce matches. Alt IDs, and obsolete IDs with a replacement, are mapped to their current term. Semantic matches are only sought for participant terms without an exact match
 
 ## Fixed
 

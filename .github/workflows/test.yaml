@@ -17,7 +17,7 @@ jobs:
 
     - uses: astral-sh/setup-uv@v7
       with:
-        python-version: '3.12'
+        python-version: '3.14'
         enable-cache: true
 
     # --locked fails the job if uv.lock is out of date with pyproject.toml

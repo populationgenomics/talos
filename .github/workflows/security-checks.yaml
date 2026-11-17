@@ -12,7 +12,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.12'
+          python-version: '3.14'
           enable-cache: true
 
       # audit what the image actually installs: every extra, at the versions pinned in uv.lock.

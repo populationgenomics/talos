@@ -162,10 +162,10 @@ variant_template = "e.g. https://seqr.populationgenomics.org.au/variant/{variant
 [HPOFlagging]
 # this section relates to phenotype-matching the final variant set
 
-# set this to True to do a semantic term comparison when phenotype matching
-# this does a wiggly semantic similarity test between participant and gene HPOs, through SemSimian
-# if False, we will always do a set intersection on HPO terms
+# only terms within HPO's Phenotypic abnormality subtree are compared; exact matches between participant and gene
+# HPO terms always count. Set this to True to also match terms which are similar, rather than identical
 semantic_match = true
 
-# min similarity score when doing a semsimian termset similarity test
-min_similarity = 14.0
+# with semantic_match, a participant term and a gene term match if their most specific shared ancestor term has at
+# most this many descendant terms (counting itself) in HPO
+max_ancestor_descendants = 25
