@@ -5,8 +5,7 @@ process AnnotateSvWithSvafotate {
         tuple val(cohort), path(vcf), path(tbi)
         path svafotate_bed
 
-    // writes an uncompressed VCF - this image carries no htslib CLI, so compression and indexing
-    // are left to RenameSvAfFields, which runs in the Talos container
+    // svafotate only writes uncompressed VCF; bgzip and index happen in RenameSvAfFields, the next process
     output:
         tuple val(cohort), path("${cohort}_sv_popaf.vcf")
 

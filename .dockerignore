@@ -4,6 +4,8 @@ build
 .github
 .coverage*
 .nextflow
+.idea
+.venv
 
 large_files*
 nextflow/*_outputs

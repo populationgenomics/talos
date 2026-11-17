@@ -35,7 +35,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - id: 'google-cloud-auth'
         name: 'Authenticate to Google Cloud'
@@ -88,7 +88,7 @@ jobs:
 
       - name: 'build image'
         run: |
-          docker build . -f docker/CPG_Dockerfile \
+          docker build . \
           --tag ${{ env.IMAGES_PREFIX }}/talos:${{ env.TAG }}
 
       - name: 'push image'

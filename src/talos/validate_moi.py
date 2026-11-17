@@ -43,6 +43,7 @@ from talos.utils import (
     canonical_contigs_from_vcf,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    gather_gene_dict_from_mito,
     generate_summary_stats,
     polish_exomiser_results,
     read_json_from_path,
@@ -90,8 +91,8 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
     moi_dictionary = {}
 
     # iterate over all genes and regions
-    for gene_data in [*panelapp_data.genes.values(), *panelapp_data.regions.values()]:
-        assert isinstance(gene_data, (RegionDetail, GeneDetail))
+    entities: list[GeneDetail | RegionDetail] = [*panelapp_data.genes.values(), *panelapp_data.regions.values()]
+    for gene_data in entities:
         # extract the per-gene MOI, don't re-simplify
         gene_moi = gene_data.moi
 
@@ -499,6 +500,17 @@ def main(
             result_list.extend(
                 apply_moi_to_variants(
                     variant_dict=contig_dict,
+                    moi_lookup=moi_lookup,
+                    panelapp_data=panelapp.genes | panelapp.regions,
+                    pedigree=ped,
+                ),
+            )
+
+        # mito variants come only from the dedicated mito VCF, independent of the small-variant VCF's contigs
+        if 'mito' in source_vcfs:
+            result_list.extend(
+                apply_moi_to_variants(
+                    variant_dict=gather_gene_dict_from_mito(source_vcfs['mito'], ped_samples=ped_samples),
                     moi_lookup=moi_lookup,
                     panelapp_data=panelapp.genes | panelapp.regions,
                     pedigree=ped,

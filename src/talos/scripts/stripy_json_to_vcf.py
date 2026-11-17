@@ -27,8 +27,9 @@ import re
 from pathlib import Path
 
 import pysam
+from cloudpathlib.anypath import to_anypath
 
-from cpg_utils import config, to_path
+from talos.config import ConfigError, config_retrieve
 
 CONTIG_ORDER = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 HEADER_LINES = [
@@ -117,8 +118,8 @@ VCF_HEADER = {
 def get_limited_locus_list() -> list[str] | None:
     """Try to get the finite list of loci from config, if available."""
     try:
-        return config.config_retrieve(['stripy', 'loci_lists', 'default_with_exclusions'])
-    except config.ConfigError:
+        return config_retrieve(['stripy', 'loci_lists', 'default_with_exclusions'])
+    except ConfigError:
         print('No CPG config detected, using all loci')
         return None
 
@@ -189,7 +190,7 @@ def parse_disease_ranges(content: dict[str, str | dict[str, int]]) -> str:
 
 def load_sample(json_path: str) -> tuple[str, dict]:
     """Load a STRipy JSON and return (sample_name, loci_dict keyed by locus_id)."""
-    with to_path(json_path).open() as f:
+    with to_anypath(json_path).open() as f:
         data = json.load(f)
 
     # hard-wired to pull the SampleID from the input filename - consider reverting
@@ -283,7 +284,7 @@ def get_gene_lookup(map_path: str | None = None) -> dict[str, str]:
     """Pull out the dictionary reading logic."""
     lookup: dict[str, str] = {}
     if map_path is not None:
-        with to_path(map_path).open() as handle:
+        with to_anypath(map_path).open() as handle:
             lookup = json.load(handle)
     return lookup
 

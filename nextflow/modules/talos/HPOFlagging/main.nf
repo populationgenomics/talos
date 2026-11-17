@@ -1,10 +1,11 @@
 process HPOFlagging {
     container params.container
+    publishDir { analysis_dir }, mode: 'copy'
 
     input:
-        tuple val(cohort), path(talos_result_json), path(panelapp), path(talos_config)
+        tuple val(cohort), path(talos_result_json), path(panelapp), path(talos_config), val(analysis_dir)
         path gene_to_phenotype
-        path phenio_db
+        path hpo_file
         val timestamp
 
     output:
@@ -19,7 +20,7 @@ process HPOFlagging {
              --input ${talos_result_json} \
              --panelapp ${panelapp} \
              --gen2phen ${gene_to_phenotype} \
-             --phenio ${phenio_db} \
+             --hpo ${hpo_file} \
              --output ${cohort}_full_results_${timestamp}.json
         """
 }

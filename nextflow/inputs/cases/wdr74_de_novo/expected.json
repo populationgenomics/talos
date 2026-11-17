@@ -1,0 +1,21 @@
+{
+  "case": "wdr74_de_novo",
+  "description": "de novo variant in WDR74",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr11-62841775-T-C"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr11-62841775-T-C",
+        "gene": "WDR74",
+        "categories": [
+          "De Novo"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

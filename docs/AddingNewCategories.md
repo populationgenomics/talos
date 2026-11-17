@@ -11,15 +11,10 @@
 3. `Details`
     * Naming convention: categorydetails[NAME]
     * Content: bespoke
-    * Any flag starting with _categorydetails_ is processed in some way upon ingestion of the VCF. An example is the `pm5` category, where the flag is not a boolean, or per-sample, but includes compound data to be digested when the VCF is read [here](https://github.com/populationgenomics/talos/blob/bc9385a21fcd9a0292d37b9ecf0f2faccae24f9e/src/talos/utils.py#L383) and [here](https://github.com/populationgenomics/talos/blob/bc9385a21fcd9a0292d37b9ecf0f2faccae24f9e/src/talos/utils.py#L309). The intention is that once parsed, it is converted into a simple Boolean or Sample label, with any other relevant data stored in the info dict.
+    * Any flag starting with _categorydetails_ is processed in some way upon ingestion of the VCF. An example is the `pm5` category, where the flag is not a boolean, or per-sample, but includes compound data to be digested when the VCF is read. The intention is that once parsed, it is converted into a simple Boolean or Sample label, with any other relevant data stored in the info dict.
 
-This framework is designed to make the addition of new categories super simple. The minimal changes required to create a new category are:
+This framework is designed to make the addition of new categories simple. The minimal changes required to create a new category are:
 
-1. Add new Category name/number and description to the config file (
-   e.g. [here](https://github.com/populationgenomics/talos/blob/main/src/talos/example_config.toml#L61))
-2. Add a new category method in the [run_hail_filtering.py script](https://github.com/populationgenomics/talos/blob/main/src/talos/run_hail_filtering.py), (
-   e.g. [here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/run_hail_filtering.py#L450)).
-   This method should stand independently, and contain all the logic to decide whether the label is applied or not. This encapsulation should also include the decision about whether a classification is Boolean (True/False once per variant, annotate with `0/1`), Sample (only relevant to a subset of Samples, annotate with a comma-delimited list of Sample IDs), or Support (a lesser level of significance). Name your category accordingly.
-3. Annotate the data using your new method, i.e. a new call [here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/run_hail_filtering.py#L1079)
-4. Add your new category to the filtering method [here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/run_hail_filtering.py#L786)
-5. If required (details category), add some new parsing logic to the `create_small_variant` ingestion method [e.g. here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/utils.py#L443)
+1. Add new Category name/number and preferred String representation in the models.py file
+2. Add a new classification decision in the write_gene_rows method, in the `run_small_filtering.py` script. This must also include a decision about whether a classification is Boolean (True/False once per variant, annotate with `0/1`), Sample (only relevant to a subset of Samples, annotate with a comma-delimited list of Sample IDs), or Details - Name your category accordingly.
+3. If required (details category), add some new parsing logic to the `create_small_variant` ingestion method in utils.py

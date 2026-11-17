@@ -58,7 +58,7 @@
         {% elif variant.var_type == 'StructuralVariant' and variant.var_data.info and variant.var_data.info.gnomad_key %}
         <br>
         <small class="text-muted">
-            gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key|urlencode}}?dataset=gnomad_sv_r2_1" target="_blank">{{ variant.var_data.info['gnomad_v2.1_sv_af'] | round(4) }}</a>
+            gnomAD v4 SV AF: <a href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key|urlencode}}?dataset=gnomad_sv_r4" target="_blank">{{ variant.var_data.info.gnomad_sv_af | round(4) }}</a>
         </small>
         {% endif %}
     </td>

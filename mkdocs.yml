@@ -76,9 +76,11 @@ nav:
   - Reference:
       - Talos Configuration: Configuration.md
       - Nextflow Configuration: NextflowConfiguration.md
-      - SV Annotation Module: SV.md
+      - SV Annotation Module: SvAnnotation.md
   - Contributing:
       - Adding New Categories: AddingNewCategories.md
+  - Internal:
+      - CPG Deployment: CpgDeployment.md
   - Changelog: changelog.md
 
 extra:

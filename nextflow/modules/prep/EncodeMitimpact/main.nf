@@ -1,5 +1,6 @@
 process EncodeMitimpact {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         path tsv
@@ -11,7 +12,7 @@ process EncodeMitimpact {
         """
         set -euo pipefail
 
-        python -m talos.annotation_scripts.parse_mitimpact \
+        python -m talos.scripts.parse_mitimpact \
             --input ${tsv} \
             --output mitimpact.vcf.gz
 

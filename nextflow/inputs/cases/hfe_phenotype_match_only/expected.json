@@ -1,0 +1,12 @@
+{
+  "case": "hfe_phenotype_match_only",
+  "description": "homozygous ClinVar P/LP in HFE, a require_pheno_match gene with no phenotype match - filtered",
+  "pedigree": "nextflow/inputs/pedigree_male_proband.ped",
+  "injected": [
+    "chr6-26090951-C-G"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": []
+  }
+}

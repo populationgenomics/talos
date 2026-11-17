@@ -1,8 +1,9 @@
 process UnifiedPanelAppParser {
     container params.container
+    publishDir { analysis_dir }, mode: 'copy'
 
     input:
-        tuple val(cohort), path(check_file), path(talos_config), path(pedigree)
+        tuple val(cohort), path(check_file), path(talos_config), path(pedigree), val(analysis_dir)
         path panelapp_cache
         path hpo
 

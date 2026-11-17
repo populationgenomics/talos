@@ -14,6 +14,7 @@ This document explains the configuration options, the default values, and sensib
 | `panelapp`            | PanelApp server to query                                                                                                                                                                                                                                                                                                                                                                       | https://panelapp-aus.org/api/v1/panels                         | It is highly recommended to use PanelApp Aus due to enhanced annotations |
 | `default_panel`       | Base panel for the analysis, applied to all participants                                                                                                                                                                                                                                                                                                                                       | "137" (The [Mendeliome](https://panelapp-aus.org/panels/137/)) |                                                                          |
 | `require_pheno_match` | List of gene symbols to remove from analysis unless phenotype matched to a participant. This is useful to exclude genes that frequently result in noise.                                                                                                                                                                                                                                       | FLG, GJB2, F2, F5, HFE                                         |                                                                          |
+| `pheno_match_strs`    | Boolean. If true, STRs are analysed only through phenotype-matched or forced panels: the `default_panel` is removed from every STR entity, and STRs found only on it are dropped. Set false to analyse `default_panel` STRs for everyone. Individual STRs can also be listed in `require_pheno_match` by symbol, ENSG ID, or PanelApp STR name.                                                | true                                                           |                                                                          |
 | `forbidden_genes`     | List of genes that will be excluded from all results.                                                                                                                                                                                                                                                                                                                                          | N/A                                                            | Late onset/incidental findings                                           |
 | `forced_panels`       | List of PanelApp panel IDs to apply to all cohort members. Typically used during the analysis of disease-specific cohorts. For example, if analysing a cohort consisting of patients who all have a suspected mitochondrial disorder, you could set this to `203` to highlight any genes associated with the Aus PanelApp [Mitochondrial disease panel](https://panelapp-aus.org/panels/203/). | N/A                                                            | Phenotype specific panels                                                |
 | `within_x_months`     | Integer, genes added to panels within X months are flagged in the report and used to determine “new” genes for the "ClinVar Recent Gene" category                                                                                                                                                                                                                                                     | 24                                                             |                                                                          |
@@ -21,8 +22,8 @@ This document explains the configuration options, the default values, and sensib
 
 ---
 
-## Stage: `RunHailFiltering`
-  * Config Section: `RunHailFiltering`
+## Stage: `RunSmallFiltering`
+  * Config Section: `RunSmallFiltering`
   * Description: Controls filtering thresholds and de novo variant detection parameters during the Hail Stage
 
 | Field                     | Purpose                                                                                                                                                                                                                                                    | Default                                                                       | Alternative                                                                                       |
@@ -34,7 +35,7 @@ This document explains the configuration options, the default values, and sensib
 | `callset_af_sv_recessive` | A coarse population and callset frequency filter - if an SV variant is more common than this either within the callset, or in the gnomAD annotations, remove                                                                                               | 0.03                                                                          |                                                                                                   |
 | `am_pathogenicity`        | A float, defining the minimum AlphaMissense pathogenicity score to be treated as pathogenic. Replaces deference to AlphaMissense's default am_class value, which is using the 0.564 score as a Likely Pathogenic threshold                                 | 0.564                                                                         |                                                                                                   |
 
-  * Config Section: `RunHailFiltering.de_novo`
+  * Config Section: `RunSmallFiltering.de_novo`
   * Description: Controls filtering thresholds and de novo variant detection parameters during the Hail Stage
 
 | Field                | Purpose                                                                                                                                                         | Default | Alternative |
@@ -98,7 +99,6 @@ Talos applies four distinct MOI filter models, each tailored to different varian
 | `callset_sv_max_af`        | Max intra-callset AF (Structural Variants)                     | 0.01    |
 | `gnomad_max_af`            | Max gnomAD 4.1 Combined AF                                     | 0.01    |
 | `gnomad_max_homozygotes`   | Max gnomAD 4.1 Combined Homozygotes                            | 5       |
-| `gnomad_max_hemizygotes`   | Max gnomAD 4.1 Combined Hemizygotes                            | 5       |
 | `gnomad_sv_max_af`         | Max gnomAD 4.1 Combined AF (Structural Variants)               | 5       |
 
 And finally, there are some further meta-parameters which control the variants being considered. These parameters are used to facilitate inclusion of less confident annotations (e.g. _in silico_ predictions) whilst preventing noise from these tools dominating the overall results:
@@ -109,15 +109,16 @@ And finally, there are some further meta-parameters which control the variants b
 | `exomiser_rank_threshold` | If Exomiser is used, limit results to the top n hits                                                                                                         | 2                |
 | `phenotype_match`         | List of categories, variants with only these assigned will be removed from the report unless a phenotype-match is detected                                   | [6]              |
 | `support_categories`      | List of categories, variants with only these assigned will be removed from the report unless detected with a comp-het partner having a 'full' value category | [alphamissense, clinvar0star] |
+| `noisy_strs`              | List of STRipy locus IDs (e.g. `ARX_1`, not the gene) whose calls are discarded, for loci with poor signal-to-noise                                          | []               |
 
 ## Stage: `HPOFlagging`
   * Config Section: `HPOFlagging`
-  * Description: Controls the phenotypic matching between genes and HPO terms by Semsimian, used to draw attention to variants in the report.
+  * Description: Controls the phenotypic matching between participant and gene HPO terms, used to draw attention to variants in the report. Gene terms come from HPO's `genes_to_phenotype.txt`, the hierarchy from `hp.obo` (Nextflow `params.gen2phen` and `params.hpo`). Only terms within the _Phenotypic abnormality_ subtree (HP:0000118) are compared - modes of inheritance, onset and other clinical modifiers never produce a match. Alt IDs, and obsolete IDs with a replacement, are mapped to their current term. A term shared by the participant and the gene is always a match.
 
-| Field            | Purpose                                                                                                | Default |
-|------------------|--------------------------------------------------------------------------------------------------------|---------|
-| `semantic_match` | If True, run a semantic match between gene and proband HPO terms. If False, do a pure set intersection | True    |
-| `min_similarity` | If `semantic_match`, this is the minumum required similarity when comparing termsets using Semsimian   | 14.0    |
+| Field                      | Purpose                                                                                                                                                                                                                                                                                               | Default |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| `semantic_match`           | If True, each participant term without an exact match is also matched to its most similar gene term. Similarity is Resnik's: two terms are as similar as their most specific shared ancestor term, the fewer descendants that ancestor has the more specific it is. If False, only exact matches count | False   |
+| `max_ancestor_descendants` | If `semantic_match`, a participant and gene term match when their most specific shared ancestor has at most this many descendant terms in HPO, counting itself. 25 approximates the `min_similarity = 14.0` previously used with Semsimian and Phenio, which this replaced                            | 25      |
 
 ## Stage: `CreateTalosHTML`
   * Config Section: `CreateTalosHTML`

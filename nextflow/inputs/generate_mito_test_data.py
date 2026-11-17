@@ -1,39 +1,40 @@
 """
-script used to create an artificial VCF for testing
+script used to create an artificial Mito VCF for testing
 """
 
-import hail as hl
+from pathlib import Path
 
-from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
+from generate_test_data import HEADER, SAMPLES, Variant, bgzip_and_tabix, mat_inherited
 
-hl.default_reference('GRCh38')
+OUTPUT_DIR = Path(__file__).parent
 
-comp_het = {'proband': Entry('1/1'), 'mother': Entry('0/1'), 'father': Entry('0/1')}
-de_novo = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/0')}
+CONTIGS = {
+    'chrM': 16569,
+}
 
-mat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/1'), 'father': Entry('0/0')}
+VARIANTS = [
+    # cat 3, no canonical consequences, here to check normalisation
+    Variant('chrM', 3243, 'A', 'G', mat_inherited),
+    Variant('chrM', 8528, 'T', 'C', mat_inherited),
+    Variant('chrM', 12278, 'T', 'C', mat_inherited),
+]
 
-# dull example, single tx consequence, all default values, i.e. only gene symbol & ID
-t = TXFields('a', 'ensga')
 
-# and for each of these Sample entries take the default schema
-sample_schema = {k: v.get_schema_entry() for k, v in comp_het.items()}
+def render(samples: list[str], variants: list[Variant]) -> str:
+    """build the full VCF text for the given sample column order"""
+    contigs = '\n'.join(f'##contig=<ID={contig},length={length},assembly=GRCh38>' for contig, length in CONTIGS.items())
+    columns = '\t'.join(['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', *samples])
+    rows = '\n'.join(variant.as_row(samples) for variant in variants)
+    return f'{HEADER.format(contigs=contigs)}{columns}\n{rows}\n'
 
-# cat 3, no canonical consequences, here to check normalisation
-v1 = VepVariant(BaseFields('chrM:3243', ['A', 'G']), [t], sample_data=mat_inherited)
 
-v2 = VepVariant(BaseFields('chrM:8528', ['T', 'C']), [t], sample_data=mat_inherited)
+def main():
+    """write the joint Mito VCF, all bgzipped and tabixed"""
 
-v3 = VepVariant(BaseFields('chrM:12278', ['T', 'C']), [t], sample_data=mat_inherited)
+    bgzip_and_tabix(render(SAMPLES, VARIANTS), OUTPUT_DIR / 'joint')
 
-# create a SneakyTable object, which will take a list of VepVariant objects
-sn = SneakyTable([v1, v2, v3], '', sample_schema)
+    print(f'wrote {len(VARIANTS)} variants to joint_mito.vcf.bgz and {len(SAMPLES)} single-sample VCFs')
 
-# once the table is parsed using the JSON schema, convert to a Hail MatrixTable
-# using the row_major functionality - this takes the list of sample IDs, converts those
-# to columns, and converts the calls from Strings to proper GT values
-mt = sn.to_hail()
-mt.describe()
 
-# this is a valid VCF, so we can export it (drops all 'VEP' annotations)
-hl.export_vcf(mt, 'joint_mito.vcf.bgz', tabix=True)
+if __name__ == '__main__':
+    main()

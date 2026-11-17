@@ -1,0 +1,12 @@
+{
+  "case": "hspa8_not_on_panel",
+  "description": "de novo insertion in HSPA8, a gene on no panel, with parental calls missing - filtered",
+  "pedigree": "nextflow/inputs/pedigree_male_proband.ped",
+  "injected": [
+    "chr11-123057736-A-AATC"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": []
+  }
+}

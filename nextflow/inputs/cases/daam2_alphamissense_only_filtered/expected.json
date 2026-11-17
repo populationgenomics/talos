@@ -1,0 +1,35 @@
+{
+  "case": "daam2_alphamissense_only_filtered",
+  "description": "de novo AlphaMissense hit in DAAM2 (AD & AR) with no phenotype match",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr6-39887558-C-T",
+    "chr6-39901326-G-A"
+  ],
+  "background_variants": 180,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr6-39887558-C-T",
+        "gene": "DAAM2",
+        "categories": [
+          "AlphaMissense",
+          "De Novo"
+        ],
+        "support_vars": [
+          "chr6-39901326-G-A"
+        ]
+      },
+      {
+        "variant": "chr6-39901326-G-A",
+        "gene": "DAAM2",
+        "categories": [
+          "AlphaMissense"
+        ],
+        "support_vars": [
+          "chr6-39887558-C-T"
+        ]
+      }
+    ]
+  }
+}

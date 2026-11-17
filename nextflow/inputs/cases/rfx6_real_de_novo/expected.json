@@ -1,0 +1,21 @@
+{
+  "case": "rfx6_real_de_novo",
+  "description": "de novo missense in RFX6 (AD)",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr6-116927170-C-T"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "6-116927170-C-T",
+        "gene": "RFX6",
+        "categories": [
+          "De Novo"
+        ],
+        "support_vars": []
+      }
+    ]
+  }
+}

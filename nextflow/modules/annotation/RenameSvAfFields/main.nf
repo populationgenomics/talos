@@ -1,23 +1,24 @@
 process RenameSvAfFields {
     container params.container
+    publishDir { annotated_dir }, mode: 'copy'
 
     input:
-        tuple val(cohort), path(vcf), path(talos_config)
+        tuple val(cohort), path(vcf), path(talos_config), val(annotated_dir)
 
     // Max_AF -> {prefix}_sv_AF, Best_gnomAD_ID -> {prefix}_sv_SVID, prefix read from the Talos config
     output:
         tuple val(cohort), path("${cohort}_sv_annotated.vcf.bgz"), path("${cohort}_sv_annotated.vcf.bgz.tbi")
 
     script:
-        // the field prefix is read from the Talos config, the same key run_hail_filtering_sv uses, so the
+        // the field prefix is read from the Talos config, the same key run_sv_filtering uses, so the
         // written and expected field names cannot drift apart. SVAFotate wrote an uncompressed VCF, so bgzip
-        // and index it here in the Talos container
+        // and index it here
         """
         set -euo pipefail
 
         export TALOS_CONFIG=${talos_config}
 
-        python -m talos.annotation_scripts.rename_sv_af_fields \
+        python -m talos.scripts.rename_sv_af_fields \
             --input ${vcf} \
             --output ${cohort}_sv_renamed.vcf
 

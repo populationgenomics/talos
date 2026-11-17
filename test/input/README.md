@@ -7,7 +7,12 @@
 - Category3, Category4(de_novo) in Proband
 - Samples are PROBAND (het), MOTHER, FATHER (both WT)
 
-#### aip_output_example.json
+#### labelled_no_mito_contig.vcf.bgz
+
+- 1_labelled_variant.vcf.bgz with the `chrM` contig line removed from the header
+- Used to check the labelled mito VCF still reaches ValidateMOI when the small-variant VCF declares no mito contig
+
+#### output_example.json
 
 - Single variant, single sample, minimised output
 - Most VCF Info fields removed for size

@@ -1,0 +1,12 @@
+{
+  "case": "usp48_indel_normalisation",
+  "description": "homozygous indel needing left-alignment, no canonical consequence - checks normalisation",
+  "pedigree": "nextflow/inputs/pedigree_female_proband.ped",
+  "injected": [
+    "chr1-21706892-GA-GAA"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": []
+  }
+}

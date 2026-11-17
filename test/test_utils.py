@@ -4,11 +4,14 @@ test class for the utils collection
 
 from copy import deepcopy
 
+import pytest
 from cyvcf2 import VCFReader
 from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.models import (
     Coordinates,
+    ParticipantMeta,
+    ParticipantResults,
     ReportVariant,
     ResultData,
     SmallVariant,
@@ -16,9 +19,9 @@ from talos.models import (
 from talos.static_values import get_granular_date
 from talos.utils import (
     annotate_variant_dates_using_prior_results,
-    create_structural_variant,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    generate_summary_stats,
     get_non_ref_samples,
 )
 
@@ -98,18 +101,20 @@ def test_get_non_ref_samples(cyvcf_example_variant):
     """
 
     samples = ['male', 'father', 'mother']
-    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples=set(samples))
-    assert het == {'male'}
-    assert not hom
+    carriers = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples=set(samples))
+    assert carriers.het == {'male'}
+    assert not carriers.hom
+    assert carriers.indices == [samples.index('male')]
 
 
 def test_get_non_ref_samples_not_in_pedigree(cyvcf_example_variant):
     """samples absent from the pedigree are dropped, even with a variant call"""
 
     samples = ['male', 'father', 'mother']
-    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples={'father', 'mother'})
-    assert not het
-    assert not hom
+    carriers = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples, ped_samples={'father', 'mother'})
+    assert not carriers.het
+    assert not carriers.hom
+    assert not carriers.indices
 
 
 def test_av_categories(trio_abs_variant: SmallVariant):
@@ -317,21 +322,73 @@ def test_annotate_dates_confidence_reset_when_not_found():
     assert not variant.confidence_increase
 
 
-def test_create_structural_variant_region_category(tmp_path):
-    """the region category only applies to the exploded row for the matched region, not the gene row"""
-    vcf = tmp_path / 'sv.vcf'
-    vcf.write_text(
-        '##fileformat=VCFv4.2\n'
-        '##contig=<ID=chr1,length=248956422>\n'
-        '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="">\n'
-        '##INFO=<ID=gene_id,Number=1,Type=String,Description="">\n'
-        '##INFO=<ID=categorydetailsregulatorycnv,Number=1,Type=String,Description="">\n'
-        '##FORMAT=<ID=GT,Number=1,Type=String,Description="">\n'
-        '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsam1\n'
-        'chr1\t1000\tsv1\tN\t<DEL>\t.\tPASS\tSVLEN=900;gene_id=REGION;categorydetailsregulatorycnv=REGION\tGT\t0/1\n'
-        'chr1\t1000\tsv1\tN\t<DEL>\t.\tPASS\tSVLEN=900;gene_id=ENSG1;categorydetailsregulatorycnv=REGION\tGT\t0/1\n',
+def comp_het_pair(chrom: str, samples: set[str]) -> list[SmallVariant]:
+    """two het variants in the same gene on the given contig, carried by the given samples"""
+    return [
+        SmallVariant(
+            coordinates=Coordinates(chrom=chrom, pos=pos, ref='G', alt='T'),
+            het_samples=samples,
+            info={'gene_id': 'TEST1'},
+            transcript_consequences=[],
+        )
+        for pos in (1, 2)
+    ]
+
+
+def test_comp_hets_x_female(pedigree_path: str):
+    """a female het for two X variants gets a comp-het pair"""
+    var_1, var_2 = comp_het_pair('X', {'female'})
+    ch_dict = find_comp_hets([var_1, var_2], pedigree=PedigreeParser(pedigree_path))
+    assert ch_dict['female'] == {
+        var_1.coordinates.string_format: [var_2],
+        var_2.coordinates.string_format: [var_1],
+    }
+
+
+def test_comp_hets_x_male(pedigree_path: str):
+    """a male het for two X variants (hemizygous, so a miscall) gets no comp-het pair; a female in the same call does"""
+    ch_dict = find_comp_hets(comp_het_pair('X', {'male', 'female'}), pedigree=PedigreeParser(pedigree_path))
+    assert 'male' not in ch_dict
+    assert 'female' in ch_dict
+
+
+@pytest.mark.parametrize('chrom', ['Y', 'M', 'MT'])
+def test_comp_hets_never_on_y_or_mito(chrom: str, pedigree_path: str):
+    """no comp-hets on haploid contigs, whatever the sample's sex"""
+    assert not find_comp_hets(comp_het_pair(chrom, {'male', 'female'}), pedigree=PedigreeParser(pedigree_path))
+
+
+def summary_variant(pos: int, category: str, *, current: bool) -> ReportVariant:
+    return ReportVariant(
+        sample='sam1',
+        var_data=SmallVariant(
+            coordinates=Coordinates(chrom='1', pos=pos, ref='A', alt='C'),
+            info={},
+            transcript_consequences=[],
+        ),
+        categories={category: get_granular_date()},
+        found_in_current_run=current,
     )
-    reader = VCFReader(str(vcf))
-    region_row, gene_row = (create_structural_variant(var, reader.samples, set(reader.samples)) for var in reader)
-    assert region_row.category_values('sam1') == {'PanelApp Aus Regulatory Region'}
-    assert gene_row.category_values('sam1') == set()
+
+
+def test_summary_stats_skip_history_only_variants():
+    """variants carried forward from history, but not found this cycle, are not counted"""
+    meta = ParticipantMeta(ext_id='sam1', family_id='fam1')
+    results = ResultData(
+        results={
+            'sam1': ParticipantResults(
+                metadata=meta,
+                variants=[summary_variant(1, '1', current=True), summary_variant(2, '6', current=False)],
+            ),
+            # every variant history-only - counted as zero, but this sample still has (history) variants
+            'sam2': ParticipantResults(metadata=meta, variants=[summary_variant(3, '6', current=False)]),
+        },
+    )
+    generate_summary_stats(results)
+    breakdown = results.metadata.variant_breakdown
+
+    assert breakdown['any']['total'] == ONE_EXPECTED
+    assert breakdown['1']['total'] == ONE_EXPECTED
+    assert '6' not in breakdown
+    # two samples considered, one with a current variant
+    assert breakdown['any']['mean'] == 0.5

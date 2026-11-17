@@ -100,6 +100,7 @@
                         <i class="bi bi-star-fill text-primary"></i>
                         Genes that have recently been added to a panel matched to this patient’s HPO terms.
                         </p>
+                        <br>
 
                         <h5>ClinvArbitration</h5>
                         <p class="mb-2">
@@ -107,6 +108,8 @@
                         <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">ClinvArbitration</a>.
                         The tool favours clear assignment of pathogenic or benign ratings rather than defaulting to ‘conflicting’.
                         </p>
+                        <br>
+
                         <h5>Flags</h5>
                         <p class="mb-1">
                             <span class="badge text-bg-warning">AB Ratio</span>  allele balance falls outside the expected ranges (≤0.15 overall, outside 0.25–0.75 for hets, or ≤0.85 for homs)
@@ -120,6 +123,7 @@
                         <p class="mb-1">
                             <span class="badge text-bg-warning">Affected female with heterozygous variant in XLR gene</span> for females, we evaluate biallelic genes under a pseudo-dominant model, to detect plausible variants in the event of skewed x-inactivation.
                         </p>
+                        <br>
 
                         <h5>Confidence</h5>
                         <p class="mb-1">
@@ -132,6 +136,7 @@
                         <p class="mb-0">
                             The coloured button next to the gene symbol shows the highest confidence level across matched panels, and can be filtered using the checkboxes above the table.
                         </p>
+                        <br>
 
                         <h5>Evidence Updates</h5>
                         <p class="mb-1">
@@ -545,12 +550,12 @@
                     }
                     html += 'gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(gnomadId) + '?dataset=gnomad_r4" target="_blank"> AC:' + escapeHtml(String(variantData.info.gnomad_ac)) + ' AF: ' + escapeHtml(String(gnomadAf)) + '</a>';
                 } else if (rowData.variantType === 'StructuralVariant' && variantData.info.gnomad_key) {
-                    var svAfVal = variantData.info['gnomad_v2.1_sv_af'];
+                    var svAfVal = variantData.info.gnomad_sv_af;
                     var svAf = 'N/A';
                     if (svAfVal !== undefined && svAfVal !== null && !isNaN(parseFloat(svAfVal))) {
                         svAf = parseFloat(svAfVal).toFixed(5);
                     }
-                    html += 'gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r2_1" target="_blank">' + escapeHtml(String(svAf)) + '</a>';
+                    html += 'gnomAD 4.1 SV: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r4" target="_blank">AF: ' + escapeHtml(String(svAf)) + '</a>';
                 }
             }
             html += '</dd>';

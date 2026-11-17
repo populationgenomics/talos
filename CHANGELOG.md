@@ -17,736 +17,153 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
-[12.3.1] - 2026-11
+[13.0.0]
 
-### Fixed
+## Added
+
+  * Optional `sv_annotated` input TSV column: an already annotated SV VCF (e.g. GATK-SV output) which bypasses SV annotation and goes straight to SV filtering. Setting both `sv` and `sv_annotated` on one row is an error
+  * Small-variant and `sv` VCFs are subset to the pedigree's samples during annotation, dropping variants no pedigree sample carries, so a dataset-wide callset is annotated and stored at cohort size. VCFs already matching the pedigree are unchanged. Pedigree samples missing from a VCF are a warning, no shared samples an error. See `docs/Pedigree.md`
+  * `params.recalculate_ac_af_an` (default `true`). Set `false` to keep the INFO/AC, AF and AN already in the input VCF, e.g. from a larger callset, instead of recalculating them from the cohort's genotypes. Pedigree subsetting then leaves them alone too
+
+## CPG only
+
+  * `talos.cpg_internal.input_tsv_from_metamist` builds input TSV rows for Metamist cohorts, generating each cohort's pedigree, external ID map, seqr map and merged config. It needs the new `cpg` extra (`metamist`)
+  * `cpg_main.nf`, a second entrypoint over `TALOS_PIPELINE`. It takes Metamist cohort IDs (`--cohort_ids`, `--access_level`, `--sequencing_type`, `--talos_config`) instead of an input TSV, builds the cohort rows with `InputTsvFromMetamist`, and publishes each cohort to `gs://cpg-<dataset>-{main|test}/<sequencing_type>/talos/<cohort>/{annotated,analysis_YYYYMMDD}/`. See `docs/CpgDeployment.md`
+  * `cpg_main.nf --metamist` registers each cohort's published results JSON (`aip-results`, the next run's history) and HTML report (`aip-report`) in Metamist, against the Metamist cohort. Off by default
+
+## Changed
+
+  * Outputs are published with process `publishDir` instead of workflow outputs (the `output {}` block), so each cohort can be given its own output location. The entrypoint decides each cohort's annotated and analysis directories and passes them down to the processes that publish. The output layout is unchanged
+  * `main.nf` takes its output root from the required `--outdir` param. `-output-dir` / `outputDir` is no longer read
+  * `preparation.nf` publishes each newly generated resource directly to `params.processed_annotations`, and no longer needs an output directory
+  * The annotation → SV annotation → analysis wiring moved out of `main.nf` into a shared `TALOS_PIPELINE` workflow (`nextflow/talos_pipeline.nf`), which takes one row per cohort with its output directories. `main.nf` now only validates params, builds those rows from the input TSV, and writes the next-cycle TSV. Process names gain a `TALOS_PIPELINE:` prefix, so `-resume` won't reuse tasks cached by earlier runs
+  * SV annotation is decided per input TSV row instead of by whether the TSV has an `sv` column. The SV reference data (`svafotate_bed`, `mane_gtf`, `svannotate_noncoding_bed`) is now required for every run
+  * Some TOML config sections renamed from their Hail versions (e.g. RunHailFiltering -> RunSmallFiltering)
+  * `HPOFlagging` no longer uses Semsimian or the 17GB Monarch Phenio DB. Semantic phenotype matching is computed directly from `hp.obo`, already staged for `UnifiedPanelAppParser`, which keeps the ontology on the same HPO release as `genes_to_phenotype.txt`. `params.phenio_db` and the `semsimian` dependency are removed, and `gather_files.sh` no longer downloads Phenio
+  * `HPOFlagging.min_similarity` is replaced by `HPOFlagging.max_ancestor_descendants` (default 25, which approximates the old 14.0): a participant and gene term are a semantic match when their most specific shared ancestor has at most this many descendant terms in HPO. A `min_similarity` left in config is ignored, with a warning
+  * Phenotype matching, exact or semantic, only compares terms within HPO's _Phenotypic abnormality_ subtree, so modes of inheritance and onset terms no longer produce matches. Alt IDs, and obsolete IDs with a replacement, are mapped to their current term. Semantic matches are only sought for participant terms without an exact match
+
+## Fixed
 
   * Single-sample VCF inputs (`ss_vcf_dir`) are now split and left-aligned per sample before merging, instead of after (#729). When an allele was part of a multi-allelic record in one sample but a separate record in another, the merge split it across two rows, each with only some samples' genotypes. That produced false de novo calls and dropped alleles. Cohorts annotated from `ss_vcf_dir` before this fix keep the bad rows until their `${cohort}_annotated/` directory is deleted and they are re-annotated. A variant written twice within one sample's VCF is now also deduplicated
+  * The default `errorStrategy` in `nextflow.config` read `process.maxRetries`, which is undefined when the closure runs. Every task failure threw instead of retrying. It now reads `task.maxRetries`, so failed tasks are retried up to 3 times with backoff
+  * Mitochondrial variants never reached `ValidateMOI`: the labelled mito VCF was only read while iterating `chrM` on the small-variant VCF, and `chrM` was never iterated. The mito VCF is now read in its own pass, whatever the small-variant VCF header declares and whether the mito contig is named `chrM`, `MT` or `M`. Mito variants come only from the `mito` input; `chrM` records in the small-variant VCF are not analysed
+  * X-linked compound hets in females were never found: comp-het pairing skipped every X pair, so `X_RecessiveFemaleCompHet` could never report. Female X pairs are now paired; males on X, and everyone on Y and mito, still aren't
+  * The `ValidateMOI` SV gnomAD filters (`gnomad_sv_max_af`, `dominant_gnomad_sv_max_af`) never filtered anything, as they read a gnomAD v2.1 field name. They now read the labelled SV VCF's `gnomad_sv_AF` (SVAFotate `Max_AF`)
+  * The report never showed an SV's gnomAD frequency or link, for the same reason. It now shows the AF, linked to the gnomAD v4 browser (`dataset=gnomad_sv_r4`) when SVAFotate found a qualifying gnomAD match
+  * The labelled SV VCF header declared every raw INFO field of the annotated input, though records only carry the curated set. It now declares only the curated fields, each with a description
 
-[12.3.0] - 2026-10
+## Removed
 
-### Added
+  * `params.annotated_dir`. Annotation products are always read from, and written to, `<outdir>/<cohort>_annotated`
+  * The startup check comparing the output directory with `params.processed_annotations`
+  * `workflow.output.mode` and `outputDir` from `nextflow.config`
+  * The `ValidateMOI.gnomad_max_hemizygotes` filter. It needed a gnomAD hemizygote count, which the whole-genome gnomAD echtvar zip (0.3.0) doesn't carry, so it never filtered anything. The key is ignored if still present in a config
 
-* New SV category, aimed at matching CNVs to PanelApp's regulatory regions
-* These are interpreted separately from other Genes, SVs, and STRs
-* A match is made when a CNV overlaps a region by a minimum of x%, and is DUP/DEL matched
+[0.6.0] - 2026-10
 
-[12.2.1] - 2026-10
+## Added
 
-### Changed
+  * PanelApp CNV regions tagged `regulatory region` are downloaded and carried through to the parsed PanelApp data
+  * `run_sv_filtering.py` labels rare DEL/DUP CNVs matching a region's type (`cnv_loss`/`cnv_gain`/`cnv_both`) overlapping at least the region's required % of the region (CNV size doesn't matter) as `categorybooleanregulatorycnv`. Each match gets its own row, using the region name as the gene ID, so region matches are retained without any gene annotation, and are never paired with gene variants as comp-hets
+  * The report shows region name, location, type, observed overlap and MOI for region matches
+  * CNVs fully contained in a region must still cover at least `RunSvFiltering.regulatory_region_percentage` (default 10) % of the region to match
+  * `generate_sv_test_data.py` adds a positive (DUP) and negative (DEL) control for the IHH upstream regulatory region, on panel 93, now forced in `nextflow/inputs/config.toml`
 
-* SVs with non-symbolic ALT alleles are skipped prior to running GATK SvAnnotate
+## Changed
 
-[12.2.0] - 2026-09
+  * SV input no longer needs every GATK-SV field. `AC`, `AF`, `AN`, `N_HET`, `N_HOMALT`, `MALE_AF`/`FEMALE_AF` and `SVLEN` are optional; a missing frequency field logs a warning and its filter is skipped, except the per-sex AF filter, which falls back to overall `AF`
+  * `prepare_sv_for_svannotate.py` backfills a missing `SVLEN` as `END - POS` where `END > POS`
+
+[0.5.0] - 2026-09
+
+## Added
+
+  * STR data can be supplied per cohort through a new optional `str` column in the input TSV, and is passed to ValidateMOI
+  * `nextflow/inputs/generate_str_test_data.py` simulates an STR VCF for the test trio, used by `test_sv.tsv`
+
+## Changed
+
+  * The way STRs are handled has been changed. PanelApp now contains STRs curated into each phenotype-specific panel
+  * STRs are detected on each individual panel, instead of all being sourced from the 'repeat disorders' holding panel
+  * By default, STR analysis is only done for phenotype-matched individuals
+
+## Fixed
+
+  * GATK SVAnnotate only works with symbolic alleles. `SortCpxIntervals` is renamed `PrepareSvForSvAnnotate`, and now also removes any SV record with a non-symbolic ALT before annotation, logging each removed record. Update any `withName: SortCpxIntervals` resource blocks accordingly
+
+[0.4.0] - 2026-09
 
 ### Added
 
 * Panel confidence (Red/Amber/Green) is now recorded in the history, and if a variant is newly promoted to Green, this is identified in the report
 * The Report has Emojis next to the date if variant evidence changes:
-    * ➕ - Seen previously, but has additional categories in this round (this was briefly 🆕)
-    * 💫 - ClinVar star count has increased
-    * 🎯 - Newly phenotype-matched
-    * 🚦 - Newly Green in PanelApp
-* STRs are now accessible via the Nextflow implementation. This requires a STRipy JSON -> VCF conversion using `src/talos/scripts/stripy_json_to_vcf.py`
-* By default, STRs are only analysed on panels phenotypically-matched to the participant to suppress incidental findings.
+    ➕ - Seen previously, but has additional categories in this round (briefly 🆕, now a new emoji which better represents 'addition' instead of a totally new variant)
+    💫 - ClinVar star count has increased
+    🎯 - Newly phenotype-matched
+    🚦 - Newly Green in PanelApp
 
-[12.1.0] - 2026-09
-
-### Added
-
-  * A new SV-specific category has been added - `PREDICTED_EXONIC_BND` annotations from SvAnnotate are now considered as an impactful category.
-  * BNDs were a blind spot for Talos, as the `PREDICTED_LOF` SV annotation was never applied to BNDs
+[0.3.1] - 2026-09
 
 ### Changed
 
-  * Debian Bullseye has reached EOL, so the default image builds have moved up to Trixie/Java 21
-  * Java 21 is not officially validated by Hail, but has worked in local testing. As far as we are aware the only risk of incompatibility with Hail/Java is relevant to Google Dataproc, which will not apply to most users.
+* The MakeScatterRegions module only detects and scatters across chr1-22,X,Y, ignoring chrM and decoy contigs. There are no PanelApp genes on decoy contigs, and chrM has a separate annotation flow
+
+[0.3.0]
+
+### Changed
+
+* The annotation workflow now runs echtvar and `bcftools csq` on a sites-only copy of each normalised shard (all samples dropped), then lifts the resulting INFO fields back onto the full-width shard with `bcftools annotate`. Only `bcftools norm`/`+fill-tags` and the final lift touch the genotype columns, so the per-shard cost no longer scales with cohort width for the annotation tools themselves. `AnnotateWithEchtvar` and `AnnotateCsqWithBcftools` are replaced by a single `AnnotateShard` process - update any `withName:` resource blocks accordingly.
+* The gnomAD AF < 0.05 pre-filter has moved from echtvar's `-i` expression to a `bcftools view -e 'INFO/gnomad_AF >= 0.05'` on the annotated full-width shard. Variants absent from gnomAD (`gnomad_AF=0`) are retained exactly as before.
+* Annotated shards are now published with a `.tbi` index alongside. Existing `${cohort}_annotated` directories (without indexes) remain valid - the manifest still names the shards to reuse.
+* The gnomAD 4.1 annotation source has been changed - the new Zenodo record is https://zenodo.org/records/22297079, and it is referenced by a new name in the config file to differentiate the two versions. The new version of the data contains fewer annotations, but spans every base in the gnomAD dataset, which prevents issues where frequency annotations could have been missing due to over-zealous region filtering when generating the original record.
+
+* `NormaliseVcf` writes its full-width intermediate at the lightest BCF compression level with threaded deflate, and `AnnotateShard` compresses its output across `task.cpus` (now 2). Deflate was ~70% of the per-shard runtime.
+
+### Removed
+
+* Annotated shards no longer carry a per-sample `FORMAT/BCSQ` bitmask. Nothing in Talos read it; `INFO/BCSQ` is unchanged.
+* `FORMAT/PL` is dropped from every shard during normalisation, and so is absent from the annotated and labelled VCFs. Talos never read it (only GT, GQ, DP, AD and the phasing fields), and it was the widest per-sample field - published shards shrink by roughly a fifth.
+
+[0.2.0] - 2026-08
+
+### Added
+
+* Adds a new category for BND variants occurring in Exons
+
+[0.1.0] - 2026-08
+
+* Every `main.nf` run now writes `talos_input_YYYYMMDD.tsv` to the root of the output directory - a copy of the run's input TSV with each cohort's `history` cell repointed at the results JSON that run published, ready to be reviewed and used as the `--input_tsv` for the next reanalysis cycle.
+* This aims to bridge the gap in the current implementation, where inputs and analysis outputs need to be manually updated for future cycles. Feel free to use this or ignore it :)
+
+[0.0.2] - 2026-08
+
+### Changed
+
+* Really reduces the per job resource requirements. This may be insufficient in HUGE cohorts, but has been successful in mid-sized (50-genome) testing. Users are invited to customise based on local requirements.
+
+### Fixed
+
+* Fixes the mechanism NextFlow uses to find adjacent-files, and carry out file globbing. This was fine for local deployments, but buggy in cloud environments due to String trimming.
+
+[0.0.1] - 2026-08
+
+### Added
+
+* Welcome to the new repository! This is Talos 2.0, designed to be easier to deploy outside the CPG and Hail Batch-using sites. Instead of using Hail/Spark as a processing framework, this reimagined version uses a more basic map/reduce framework, scattering the input data as sharded VCFs, annotating and filtering in pieces, and re-forming a final VCF input from the minimal set of relevant variants. No Hail runtime, no MatrixTables, no Spark cluster. Just VCFs. This feels like a good compromise given the considerations - this needs to remain site-agnostic, making few assumptions about available infrastructure, but needs to run relatively quickly across cohorts of all sizes. This will still present scaling issues at super-high cohort sizes, but it represents dramatic improvements over the original Talos implementation at non-Spark enabled sites.
+
+### Changes from the original Talos
+
+* The labelling/filtering phase which runs on the annotated data has been rewritten as a loop over an annotated VCF fragment, instead of requiring data to be read into a MatrixTable and processed in a single highly-resourced runtime.
+* The annotation workflow no longer physically splits the input VCF (`SplitVcf` is gone - it was a serial pass over the whole callset). Scatter regions are now derived from the VCF index (`MakeScatterRegions`), with each `NormaliseVcf` task reading only its region from the input; `params.vcf_split_n` is now the target records per region, and `0` still disables the scatter.
+* `MakeScatterRegions` now stages only the `.tbi` - `bcftools index -s` reads contig, length and record count from the index alone, so the whole-callset VCF is no longer localised into that task.
+* Outputs are split per cohort: annotation products (annotated shards, shard manifest, annotated SV VCF) publish to `{cohort}_annotated/`, and analysis results to a dated `{cohort}_analysis_YYYYMMDD/`. The `{cohort}_annotated` directory is reusable across reanalysis cycles and safe to delete to force re-annotation. **Migration**: existing output directories keep annotation products in `{cohort}_outputs/` with no manifest - re-run `main.nf` once to regenerate into the new layout.
+* Annotation writes a per-cohort `{cohort}_manifest.json` naming exactly the shards it produced, and is now idempotent: cohorts whose manifest already exists are reused (shards read from the manifest, never a directory glob), so stale shards from an earlier annotation run (e.g. a different `vcf_split_n`) can never be double-counted, and a reanalysis cycle is simply a re-run of `main.nf`. A new optional `params.annotated_dir` lets a run read annotation products from a different location than it publishes results to.
+* VCF ingestion in ValidateMOI no longer iterates the full cohort three times per variant - depths, alt depths and AB ratios are sliced from the genotype arrays at carrier positions only, and phase data is read for carriers only. Per-variant config lookups (exomiser rank, de novo thresholds, CSQ field names) are now resolved once per process.
+
+### Removed
+
+* `talos_only.nf` - redundant now that annotation is idempotent; re-run `main.nf` for reanalysis cycles instead.
 
 <!--latest-end-->
-
-[12.0.2] - 2026-09
-
-### Added
-
-  * Dockerfile can now take build arguments for base image and Java version. The default version is now approaching EOL, but due to Hail's dependency pinning, Bullseye is the latest Debian version with Java 11 available as standard
-  * Documented that Java >11 is not explicitly validated by Hail, but building on a more modern Java & base does seem to work in local testing
-
-[12.0.1] - 2026-08
-
-### Added
-
-  * New NF workflow output - each run creates a new file, suitable for use as input in the next round of analysis
-  * the new file contains the same verbatim content as the input file, except for the `history` column, updated to contain the cohort's output file from the current run
-
-[12.0.0] - 2026-08
-
-### Breaking
-
-Input TSV parsing has been changed, and is now more fully described in the README. Instead of requiring specifically named asset files to represent absent inputs (e.g. `assets/NO_HISTORY` instead of not providing results from a prior analysis), the parsing now intelligently detects that either a completely missing column, or an empty value in that column, represent an absent input. Any input files which contain these asset files will break on versions >= 12, as the 0-Byte sentinel file will be parsed as a real input.
-
-Apologies for this breaking change, but the original solution was bad, and was a product of not finding a better solution in NextFlow. Flexible TSV parsing and empty-channel defaults should make this much simpler to manage.
-
-### Fixed
-
-A couple of workflow elements are now fixed:
-
-- file discovery in cloud environments was broken, i.e. the glob for previously generated MT files, or the glob for input VCFs and corresponding indices. Due to string handling these were stripping the `s3:// or gs://` prefix, leading to a pseudo-local path being checked, which would fail to find existing files.
-- channel mixing is now fixed - if SV columns were provided but empty, the Small variant and SV channel mixing would return an empty join, so ValidateMoi and downstream stages would never run.
-
-### Added
-
-SV inputs and how to provide them are discussed more in the documentation pages.
-
-[11.3.0] - 2026-08
-
-### Important
-
-  * The latest changes, increasing reliance on PanelApp data for gene locations and IDs, requires any PanelApp download prior to this version to be deleted and regenerated. Usage of an earlier PanelApp download will liekly fail loudly (as the download does not contain 'Location' attributes).
-
-### Changed
-
-  * RunHailFiltering has been changed to region-filter data on read, instead of parsing annotations, resulting in massive runtime improvements
-  * After the recent PanelApp updates, we're leaning more on the service to supply gene symbols, ENSG IDs, and chromosomal locations, instead of intersecting data from differen sources
-
-### Removed
-
-  * Removed support for Exomiser and SpliceVarDB as external annotation sources. If there is community demand for these features they could be re-introduced, but these weren't readily available outside CPG, and weren't used internally.
-
-[11.1.1] - 2026-08
-
-### Added
-
-  * A full SV annotation, filtration, and labelling workflow
-  * A separate Dockerfile to contain the new tool
-  * Dockerfiles are all centralised into the `/docker` root folder
-
-
-[11.1.0] - 2026-07
-
-### Removed
-
-  * All references to the private build of BCFtools. the `--greedy` behaviour is now released as standard in BCFtools 1.24
-
-### Added
-
-  * STR functionality! This is currently specific to STRipy data, with a script to translate STRipy JSON data into a pseudo-joint called VCF
-  * If there is appetite for STR functionality, this could be expanded to other STR callers.
-
-[11.0.0] - 2026-05-15
-
-### Added
-
-  * Added optional Mitochondrial annotation pathway to the NextFlow implementation, and included mito annotation resources in the prep workflow.
-  * Full mkdocs build for the companion Docs site.
-  * Test fixtures and demonstration data now includes more non-coding variants and Mitochondrial data.
-  * Added "Super Logging" functionality. Opt-in high rate logging to explain the rejection reason for each variant.
-  * Talos previously only logged results, not rejections. This logs misses, and explanations e.g. threshold failure, family test, insufficient read depth, comp-het with only support categories
-  * Using the "confidence_level" configuration setting can allow PanelApp genes with lower evidence levels (1 >= Red, 2 >= Amber) to be used in analysis. The default level remains 3/Green-only.
-  * The HTML report shows, for each gene, the panels it was found in, and the confidence level associated evidence level on each panel. Checkboxes can be used to filter to specific confidence levels.
-
-### Changed
-
-  * Completed the migration from publishDir directives to exclusively using Workflow Outputs (see https://nextflow.io/docs/latest/tutorials/workflow-outputs.html)
-  * Removed some intermediate build layers from Dockerfiles
-  * The Ensembl GFF3 file is now edited during the download script, to re-name chrMT -> chrM, which enables Mitochondrial analysis. This requires re-running the file download and preparation workflow.
-  * The AlphaMissense category now allows users to set a pathogenic threshold (config.toml -> `RunHailFiltering.am_pathogenicity`). Each run can now set a manual threshold instead of deferring to the low default value of 0.564.
-  * PanelApp parsing can now pull Red, Amber, and Green genes. A config parameter `confidence_level` can be used to control this behaviour. N.b. MOI may not be as well curated for non-green genes.
-
-> NOTE! Since 10.0.0, Talos uses a `TSV` input file to drive analyses. As of this update, the optional columns (previous results as a history, seqr IDs, secondary IDs, now Mitochondrial VCF) are all truly optional. The workflow doesn't require them to be populated in the input file at all.
-
-### Fixed
-
-  * Swapped out the standard BCFtools build for a CPG-fork.
-  * This fork contains a single change - coding and non-coding genes are both annotated equally. This behaviour has been upstreamed into BCFtools, but not yet released (see [this commit](https://github.com/samtools/bcftools/commit/90e602563503e6daa524a36a61218a974253d6be))
-  * In our local runs we have seen that the default behaviour of BCFtools (issue [here](https://github.com/samtools/bcftools/issues/2548)) lead to failure to annotate consequences in non-coding genes where they overlapped with a coding gene, even if the non-coding gene was of greater clinical relevance.
-  * By moving to the CPG fork, we have altered this behaviour. This may result in slightly slower annotation times, but should always present both coding and non-coding gene annotations where appropriate.
-
-> NOTE! For existing Talos users, obtaining this extra annotation will require the re-run of the annotation workflow. One example gene which is known to be obscured by this default behaviour was RNU2-2, but there may be others.
-
-[10.0.1] - 2026-03-23
-
-### Fixed
-
-* Reinstates behaviour to remove solved cases from HTML reports. This is optional based on a config parameter, so cases being flagged as solved in the JSON, but displayed in the HTML, can be handled. This was never intentionally removed, but was lost in a report refactor.
-
-[10.0.0] - 2026-02-24
-
-For external users this is a _very_ breaking change, as it alters the files used to provide inputs to NextFlow.
-
-### Removed
-
-* individual nextflow.config/cli parameters to control pedigree, vcf path(s), toml config, history file
-
-### Changed
-
-* NextFlow run operates from an input_tsv, containing all cohort-specific arguments as columns
-* Any number of cohorts can be provided as separate rows, making it far simpler for sites to run smaller per-family or per-individual analyses
-
-[9.0.3] - 2026-02-19
-
-This change includes a major* revision of the Nextflow implementation. Instead of 3 workflows each accessible through a standalone workflow file, this is now present as a top-level main.nf file, importing and executing sub-workflows. This was also used as an opportunity to merge all config files into a single file, harmonising variable/param names.
-
-Small updates to the expected reference data files (MANE & GFF3), though it is not anticipated this will cause large changes.
-
-### Added
-
-* Top-level `main.nf` and `preparation.nf` workflow files.
-  * `preparation.nf` contains all the data munging steps to turn raw downloads into Talos-ready annotation sources.
-  * `main.nf` encapsulates the Annotation and Talos sub-workflows, either as a unified workflow, or using the `TALOS_ONLY` entry.
-* `nextflow.config` - a single config file for all Nextflow usage
-
-### Removed
-
-* 3 separate `.config` files for the discrete NF workflows, now consolidated into a single file
-
-### Changed
-
-* The links for downloading MANE (1.4 -> 1.5) and Ensembl GFF (115 -> 116) have been updated. No major change expected.
-
-[9.0.1] - 2026-02-05
-
-### Added
-
-* re-adds the merge-from-single-sample-VCFs entrypoint
-  - single-sample VCF route leads into manual VCF sharding
-
-[9.0.0] - 2026-01-29
-
-### Changed
-
-The whole annotation pipeline has been changed (see PR #634). In brief:
-
-- instead of operating on the input data in one chunk, we allow for sharded input, or split single inputs
-- annotation is applied to each VCF fragment in parallel
-- candidate NF resourcing is applied to each stage
-- AlphaMissense results are annotated using echtvar instead of a Hail Table join
-- Data is loaded into a MatrixTable once per shard
-- Talos workflow can operate on one or more MTs, so no obligation to coalesce data
-
-Arguments:
-
-- some workflow arguments have been renamed, e.g. `cohort_output_dir` -> `output_dir`
-- `--matrix_table` has been removed, now the Talos workflow will find all `*.mt`s in the `output_dir` as input
-- I've tried to be more explicit that output/intermediate folders should be stored outside of this repository, so as not to block git updates.
-
-### Removed
-
-* all VCF merging steps - this workflow now requires a single VCF, or sharded VCFs representing a single callset
-
-[8.4.0] - 2026-01-27
-
-### Removed
-
-* ClinvArbitration data is no longer sourced from Zenodo
-
-### Added
-
-* A preparation workflow, used to download raw ClinVar data and generate annotation sources. Also downloads PanelApp.
-
-### Changed
-
-* The workflow now requires/expects a data dump to exist representing the current month's ClinVar/PanelApp content. If absent, the workflow will quit, and will request you run the prep workflow first.
-
-[8.3.8] - 2026-01-22
-
-### Changed
-
-* Jumps this codebase up to python 3.11, following a recent release of Hail 0.2.137
-* Docker base images. This is actually a regression to an earlier debian version (bullseye) to support the Hail requirement of Java==11
-* Further corrections to the de novo implementation, now confirmed tested on multiple test datasets
-
-[8.3.6] - 2026-01-16
-
-### Changed
-
-* De Novo detection algorithm altered. Now instead of fully executing in Hail (which has been error prone), the initial search is done in Hail, with secondary filtering (AB ratio, minimum alt depth) taking place later in python, where we can handle errors better.
-
-### Removed
-
-* strict_ad (padding single-entry AD arrays with 0)
-* genotype_only (subset of de novo search functionality only using genotypes)
-
-[8.3.5] - 2026-01-14
-
-### Changed
-
-* Talos now has a dependency on Mendelbrot, an external library which is acting as a common utilities collection for Talos and TalosAf
-* Uses the PedigreeParser from Mendelbrot, deletes the duplicated code and tests in this codebase
-
-### Added
-
-* Adds HGVS interpretation to the amino_acid_change field coming out of BCFtools CSQ
-
-[8.3.4] - 2025-11-27
-
-### Fixed
-
-* Substantially alters the de novo detection method, inferring GT (where missing but high quality -> HomRef), AD (where missing but high quality HomRef insert dummy values, where AD is a single element list add a 0 representing no alt reads), and DP (If DP is defined, use it, otherwise derive DP from AD)
-* These changes should allow collaborators with gVCF combined data, but not combined with Hail Query, to run de novo detection
-
-### Changed
-
-* The docker images, both CPG internal and general purpose, both use BCFtools 1.22, and the NF CSQ annotation module updates to use appropriate syntax
-
-[8.3.0] - 2025-10-18
-
-### Fixed
-
-* CPG Internally - due to altered CSQ behaviour in BCFtools 1.22, revert back to 1.21. Retain the explicit prefix unification in the CSQ call in case I accidentally update the version again.
-
-[8.2.0] - 2025-09-22
-
-### Added
-
-* Various report reformats to improve usability and clarity.
-* Results report now contains tabs for: “Results”, “Run Metadata”, and “Run Configuration”.
-
-### Changed
-
-* Variant table has been reformatted to support display on smaller screens.
-
-[8.1.0] - 2025-09-19
-
-### Added
-
-* New default variant category:
-  * `ClinVar Recent Gene` -  P/LP ClinVar with 0 stars that are in "new" PanelApp genes. New genes are defined by the recency threshold configured via GeneratePanelData.within_x_months (default: 24).
-* New support/secondary category:
-  * `ClinVar 0-star` - P/LP ClinVar with 0 stars. This is a support/secondary category by default, but can be promoted to strong in config.
-
-### Changed
-
-* GeneratePanelData.within_x_months is now 24 months by default (was 6 months). This means that "new" genes are those added to PanelApp within the last 24 months.
-
-### Fixed
-
-* Corrected boolean precedence in Hail expression for `categorybooleanclinvar0starnewgene`.
-
-[8.0.4] - 2025-09-19
-
-### Changed
-
-* the Ensembl GTF file is updated to v115, this has been reflected in the downloader script and config.
-* the list of transcript consequences where we are searching for de novo variants has been expanded to include in-frame deletion and insertion
-
-[8.0.2] - 2025-09-03
-
-### Removed
-
-* The `result_history` mechanic for providing a directory of discrete files represnting state
-
-### Changed
-
-* State is now handled by passing a whole previous analysis result JSON into the workflow using `--previous_results`
-* During MOI evaluation, a Homozygous variant will be considered for Comp-Het analysis, but only if the second hit is a SV deletion
-* The ClinVar data download has been updated to the latest Zenodo release (2025-09)
-
-[8.0.0] - 2025-08-19
-
-### Removed
-
-* All phenopacket generation and parsing code and dependencies are removed
-* Removes the second report from HPOFlagging, instead exporting a single, phenotype-annotated report
-
-### Changed
-
-* No more phenopackets, instead we're using a single TSV (pedigree) file to contain the pedigree data, and optionally HPO terms. See the docs/Pedigree.md file for details on the new format and corresponding parser.
-* The Report now presents the variant Categories as a short phrase (e.g. "ClinVarP/LP, HighImpact", instead of "1, 3")
-* Lots of Model updates, but the liftover methods should accommodate them
-
-### Added
-
-* Added a Startup validation module to the Nextflow Talos-workflow. This checks the provided files/data should give successful results
-* Added a pedigree parser module, and uses it internally
-* Adds a file download process for all the required large input files
-* Adds a breakdown of count/mean/median/SD for instances of each variant category in the report JSON
-
-[7.5.0] - 2025-08-07
-
-### Changed
-
-* De Novo variant detection/filtering
-
-During the de novo filtering process, GQ requirements have been altered. Instead of a flat "GQ >= 25" test against all
-members of the callset, we now  have two separate configurable parameters:
-
-* `de_novo.min_proband_gq` is filtered against all *affected* members of the pedigree.
-* `de_novo.min_all_sample_gq` is optional, and is levied against every sample in the callset. Default is not to apply.
-
-This altered behaviour means that we can now apply a stricter test against the proband, while still allowing
-for a more relaxed test against other samples. This is useful in cases where the proband has a high GQ, but the parents
-have a lower GQ, and we want to detect the de novo call.
-
-A key situation to be aware of here - when combining single-sample VCFs into a multi-sample callset, as implemented in
-the Nextflow workflow, WT calls with a GQ and AD of 0 are inserted when an individual had no evidence at the locus. This
-means that if the `de_novo.min_all_sample_gq` test is applied, it will fail for all inserted WT calls, which will greatly
-reduce candidate de novo discoverability. A logging message is printed to indicate when this test is run, and the config
-example contains a comment indicating that this option will harm de novo discoverability if WT GQ=0 calls are inserted.
-
-* Large files
-
-Updated NextFlow config and README indicating that the `phenio.db` file is expected to be provided to the workflow
-decompressed. A substantial portion of runtime and disk was spent decompressing this file, and keeping it decompressed
-is a more efficient use of resources. The documentation/download process will have a substantial overhaul in an upcoming
-change.
-
-[7.5.0] - 2025-08-05
-
-### Changed
-
-1. The default NextFlow Glob for indidvidual VCFs has been changed from `*vcf.bgz` to `*.vcf.gz`, to match a more commonly used
-   file extension The test data file names are updated to reflect the new default. This can be overridden with `--input_vcf_extension vcf.bgz`.
-2. The NextFlow Glob also includes a `checkIfExists` check, so that if no VCFs are found, the workflow will not run and
-   will instead throw an error. This is to prevent the workflow running with no input data, which was previously possible
-   and would result in a confusing 0-second runtimes.
-3. BCFtools merge now inserts WT genotypes for missing genotypes. This is to ensure the AC/AF/AN calculations are across
-   the whole sample group under consideration. This is a change from the previous behaviour, which would not insert WT
-   genotypes and would result in inflated AF values.
-4. BCFtools no longer writes an uncompressed intermediate file after the merge. Instead it streams directly through the
-   fill-tags plugin.
-5. NF-workflow: Many stages have been changed from 'copy results to the output folder' to 'symlink to the output folder'.
-   This is to reduce the amount of data copied around, and to ensure that the output folder is not bloated with various
-   intermediate files which have no residual value after the workflow has concluded. This is a change from the previous
-   behaviour, which would copy all results to the output folder. Depending on deployment, this may cause issues, and the
-   copy behaviour may be preferable.
-5. CPG-internal: no HT/MT outputs are tar'd to transmit between Stages; instead we use gcloud to copy the un'tar'd MT/HT.
-   This action alone was adding ~35% to runtimes, and was not necessary for the workflow to run correctly.
-
-### Removed
-
-* The HpoFlaging step no longer writes two separate reports (HPO-matches annotated, and hard filtered to only HPO-matches).
-  Instead it writes only a single output with HPO-matches annotated, and filtering can be applied in the HTML report.
-* The CPG-Flow stage for squashing the MT into a Tarball has been removed.
-
-### Added
-
-* Nextflow has been added to the CPG-internal Dockerfile as standard
-
-[7.0.8] - 2025-04-22
-
-### Changed
-
-* Default NextFlow workflow is updated to allow for a pre-existing phenopacket file to be used. Also adds 3 options:
-
-1. if phenopackets are provided, use that
-2. if a pedigree with hpo terms is provided, use that to generate a phenopacket file
-3. if neither is provided, use the pedigree to generate an empty phenopacket file
-
-* the zenodo link and filename for the gnomAD reference file has been updated (same file, with `.zip` removed)
-
-* internal workflow allows for a specific clinvar path to be provided - now all projects have permission to query fewgenomes
-
-### Deprecated
-
-* remove the FindGeneSymbolMap file, not used any more
-* remove the get_logger (named logger instance) method, replace with universal `loguru.logger`
-
-[7.0.6] - 2025-04-10
-
-### Fixed
-
-CreateTalosHTML now correctly populated hyperlinks in the full-sized, and sample-subset, reports.
-
-### Added
-
-Nextflow annotation workflow now allows for users to provide a pre-merged VCF, skipping the merging step.
-
-[7.0.5] - 2025-04-09
-
-### Changed
-
-The GeneratePanelData module now skips over any HPO terms which were not found in the ontology. This is an escape for
-deprecated terms which are present in the metadata, previously these were causing a crash in the pipeline. This means
-that some outdated HPO terms will not have a chance at a gene panel match, with logging to indicate which terms were
-causing problems.
-
-### Removed
-
-setup.py has been deleted, in favour of a fully pyproject-based setup. This is a more modern approach to packaging, and
-was in use as-of 7.0.0... I just forgot to remove the old setup.py file.
-
-[7.0.4] - 2025-04-03
-
-What happened to 7.0.3? Who knows!
-
-### Changed
-
-The way hyperlinks are generated out to external resources has been changed to be less Seqr-specific and more flexible.
-Package is now limited to Python 3.10.X, due to a restriction in CPG-Flow.
-
-Extensive renovation of how population filters are applied to different types of variant/MOI. This new approach
-separates Dominant/non-Dominant filters, and ClinVar/Non-ClinVar filters. Each MOI model implents one of these 4 models,
-each populating its filters from a specific block in config. As well as resulting in a more transparent and extensible
-filtering process, this also removes a number of noisy variants we were retaining due to overly lax/absent filtering of
-ClinVar Pathogenic variants.
-
-### Added
-
-A CPG-Flow workflow to run this pipeline internally at CPG. This is a wrapper process migrated from the CPG's internal
-production-piplines workflow, with a few bits of updated syntax.
-
-
-
-
-[7.0.2] - 2025-03-25
-
-### Fixed
-
-Correction to some of the NF modules - MatrixTables are no longer being re-compressed, so updating the expected file
-extension to `.tar` instead of `.tar.gz` in the workflow.
-
-[7.0.1] - 2025-03-24
-
-### Fixed
-
-Patched some SV VCF parsing - I was expecting the same schema to be present in CNV and GATK-SV VCFs, but some fields
-need to be optional for both to pass through the parser.
-
-### Added
-
-A new block of functionality allows for genes and corresponding MOIs to be added from configuration, rather than only
-pulling from PanelApp. This is useful for genes which are not in PanelApp, or for genes which are in PanelApp but not
-expected to be found through the existing phenotype-matching process. It's also able to apply more lenient MOIs for
-genes which were found in PanelApp, e.g. to trigger a more exploratory analysis.
-
-[7.0.0] - 2025-03-20
-
-### Origin
-
-This is the starting point for Talos as an easily redistributable tool. Prior to this point Talos was reliant on
-external annotations in a fixed format, making redeployment a challenge. This version is the first to own all annotation
-processes, implementing an annotation pipeline which is minimal and quick to run.
-
-The aim starting from this version is to ensure all Talos developments can be rolled out easily to external users with
-no breaking changes, and no dependencies on external data formats or privately configured workflows.
-
-### Added
-
-Two nextflow workflows in the `nextflow` directory:
-
-1. annotation.nf - a workflow to run the annotation pipeline, from raw VCF to annotated MT
-2. talos.nf - a workflow to run the Talos pipeline, from annotated MT to report
-
-These may not scale fantastically, but they are a good starting point for running Talos in a reproducible way, and they
-can be used as a functional demo using test data distributed with the repository.
-
-This annotation workflow is solely for SNV/Indels, but the SV analysis now runs from VCF instead of from the MT format
-we hold internally. The annotations we expect are still in the exact format applied by GATK-SV's AnnotateVcf module, but
-this is a good foundation for allowing SV VCFs annotated from other tools (e.g VEP to be used).
-
-This annotation pipeline makes use of gnomAD V4.1 data, which is the latest version of gnomAD at the time of writing.
-This is a far larger dataset than the previous gnomAD 2/3, and is expected to provide stronger filtering power.
-
-[6.0.0] - 2024-10-21
-
-### Added
-
-* MakePhenopackets stage, which generates a Phenopacket file from Metamist
-
-### Changed
-
-* Renamed `GenerateSeqrFile` to `MinimiseOutputForSeqr`
-* Renamed `vcf_to_mt` to `VcfToMt`
-* The 'extended PED' file format is no longer used - instead we use a normal 6-col PED file, and a separate file with
-  phenotypic data and external IDs for each participant in a GA4GH-compliant Cohort/Phenopacket format
-  * An adapter remains in [talos/CPG](https://github.com/populationgenomics/talos/blob/main/src/talos/ConvertPedToPhenopackets.py) to convert the old format to the new format
-
-### Deprecated
-
-* GeneratePED has been deleted
-
-[5.0.0] - 2024-07-08
-
-### Changed
-
-* Throwing all the source code in a `/src` folder
-* Principal scripts are renamed, and accessible as command-line entrypoints
-
-1. GeneratePED
-2. GeneratePanelData
-3. QueryPanelapp
-4. RunHailFiltering
-5. RunHailFilteringSV
-6. ValidateMOI
-7. CreateTalosHTML
-
-* extensive removing of the pre-commit exclusions, and consequent reformatting to pass new tests
-* documentation updated
-
-[4.0.0] - 2024-06-09
-
-### Changed
-
-- Name AIP -> Talos
-- Pre-commit tooling changed again (linting with Ruff instead of Black)
-- Removes use of QoB, and relies on 'local' Hail Query operations
-- Drops Peddy in favour of Peds for a more minimal install
-- Splits metamist querying into a separate script, with all other downstream operations using an extended PED format (6
-  cols + ext IDs + HPO IDs)
-
-MOI testing
-
-- Uses the altered pedigree representation for MOI
-- Each variant is interpreted relative to the immediate Trio (i.e. a quad is interpreted as 2 separate trios, not as a
-  single variant/variants solving all presentations in a family)
-
-### Added
-
-- An adapter to take a VEP-annotated VCF and restructure in Hail to match the VEP-from-JSON annotated version we
-  natively expect from the seqr loader pipeline
-
-### Removed
-
-- Everything to do with VEP... This does not contain a vep installation, and no longer determines how/if VEP is to be
-  run. Except for ClinVar reanalysis - still in the process of dog-fooding that from ClinvArbitration instead of
-  reimplementing here
-- Removes even an example of analysis outcome registration from this repository, not even we use that functionality...
-
-[3.2.2] - 2024-04-12
-
-### Changed
-
-Huge re-working of the pre-commit tooling, resulting in reduced overall line count
-
-[3.0.0] - 2023-12-08
-
-This was a MASSIVE refactor affecting almost all parts of the codebase. Instead of characterising
-data in various places using type hinting, I've now introducted Pydantic models to formally represent
-the data used in each part of the application (see reanalysis/models.py). This has the benefit of
-making the code more readable, and also allows for the use of Pydantic's validation and parsing.
-
-A key note is that all serialised/deserialised data is now done through a Pydantic validation layer,
-forcing the data to conform to the model. This may require some objects (e.g. state/history files)
-to be reformatted, as during this work I identified some inconsistencies in the data.
-
-### Added
-
-* Data models for every aspect of the analysis
-* Pydantic validation layer for all serialised/deserialised data
-* Specifically, all variants inherit from VariantCommon, and Structural and Small Variants each have
-  a fundamentally different object representation, with a common interface but some internal methods
-  specific to each variant type. This is extensible (e.g. further inheritance for STRs)
-
-### Changed
-
-* All minimial-case representations of Variants or Reportable events used in unit tests are now
-  represented as full Pydantic models for the corresponding data type
-* So many little things, this was a +3000/-2000 line change
-
-[2.1.0] - 2023-11-20
-
-This change involved the introduction of SV data, and the co-processing of SV and Small Variant
-data in a unified analysis process. The SV data format expected is based on the GATK-SV pipeline
-and annotation.
-
-This also includes the addition of the `sv1` category, which represents LoF structural variants
-
-### Added
-
-* SV data is now processed alongside small variants
-* `sv1` category specific to SV data
-
-### Changed
-
-* Some of the AbstractVariant loading is modified to allow for SV data (e.g. defaults for depths)
-
-[2.0.0 & 2.0.1] - 2023-10-26
-
-This bump is less substantial than the version number suggests, but in hindsight the previous
-version should probably have been a major bump due to wholesale changes in how input is provided.
-
-### Added
-
-* CategoryBoolean6 (AlphaMissense) is now active, and should be implemented in a backwards
-  compatible way (no failure if annotation is absent)
-* VCF export includes `am_class` and `am_pathogenicity` (defaulting to empty String)
-* If these fields are not missing, they should render in the report's variant drop-down drawer
-
-### Changed
-
-* The Hail Labelling stage also takes a dataset argument (used to generate a dataset-specific
-  path for the temporary files/checkpoints)
-* Removed a second config file from the test framework (consolidate all fields into 1 file)
-* MyPy and Ruff are implemented as replacement linting tools. Stricter, and a billion times faster
-
-### Deprecated
-
-* Flake8 and PyLint are removed as linting tools
-
-[1.2.0] - 2023-10-16
-
-### Changed
-
-* a lot. Like... a lot
-* All the Cohort-specific content in the configuration files has been removed from the main config file. For CPG usage
-  we have some sensitivities around the open publication of the cohorts and details of the analysis carried out. As a
-  precaution (although this config does not contain sample-level data) we have removed the cohort-specific content from
-  this repository and moved it to a private repository.
-* Structurally the cohort-specific region of the config file has changed. This is to better facilitate running of Talos
-  through our main analysis pipeline, requiring less manual intervention to run exomes and genomes separately. The
-  utils methods `get_cohort_config` and `get_cohort_seq_type_conf` have been updated to reflect this.
-    1. `config.cohorts.COHORT` contains details general to a whole cohort - blacklisted genes, additional panels, solved
-       cases
-    2. `config.cohorts.COHORT.GENOME` contains details specific to the genome analysis of a cohort - the Seqr project
-       name, mapping between individual and seqr family IDs, and any labelled variants for this group
-    3. `config.cohorts.COHORT.EXOME` is the counterpart to `.GENOME`
-* Hail Labelling/Filtering now takes an output path, to be more easily included in a Hail Batch workflow
-* The run preparation and HPO-panel script now use GQL queries, which drops a few methods
-* The external_lookup file is no longer used - the same Internal-External ID mapping is noq stored alongside phenotype
-  data in the HPO panel file.
-* `--plink` argument to interpretation_runner is renamed to `--pedigree`
-* Methods to reduce a cohort by a fixed percentage have been deleted - was useful as a potential test/train set, but has
-  not been used recently
-
-[1.1.5] - 2023-08-28
-
-### Changed
-
-* reanalysis/interpretation_runner.py creates two reports; the first report is all standard content from the run, the
-  second report is variants new within this latest run
-* Relevant interfaces with the output file registration and report hunter scripts are altered
-* The report hunter script is altered to create two separate index pages; one for the standard reports, one to only look
-  for the latest-variant report
-
-[1.1.4] - 2023-06-28
-
-### Changed
-
-* Updated to use the latest models in Metamist/sample metadata DB
-* Queries updated to use GraphQL
-
-[1.1.3] - 2023-06-22
-
-### Added
-
-* Adds a helper script which exports a file formatted specifically for ingestion into Seqr
-
-[1.1.2] - 2023-05-31
-
-### Changed
-
-* Adds a number of changes to how ClinVar pathogenic variants are processed
-* See [this PR](https://github.com/populationgenomics/talos/pull/305)
-
-[1.1.1] - 2023-05-08
-
-### Added
-
-* See [this PR](https://github.com/populationgenomics/talos/pull/293)
-* Adds the PM5 category, and the VEP content to create the relevant annotation data
-
-[1.0.1] - 2023-04-01
-
-### Added
-
-* Added this changelog
-* Allow for addition of non-Metamist metadata registrars, selectable in config
-* Added Variant Tagging in report, adopted from MW@MSFT's fork - #271
-* Add family ID into top level variant table
-
-### Changed
-
-* Separated out metadata registration into a separate file & job
-* File registration is set to `always_run`, if indicated in config
-* De Novo calling (hail method) can have `max_parent_ab` ratio overridden in config
-* Establishes a method-contract for altering metadata registrars and HTML scripts
+<!--changelog-end-->
