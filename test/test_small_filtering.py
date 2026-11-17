@@ -257,7 +257,7 @@ def test_filter_rows_for_rare(genomes, clinvar, kept):
     ],
 )
 def test_ac_filter(ac, af, clinvar, kept):
-    assert passes_ac_filter({'AC': ac, 'AF': af}, clinvar, af_threshold=0.01) == kept
+    assert passes_ac_filter({'AC': ac, 'AF': af}, clinvar, af_threshold=0.01, min_ac_to_filter=5) == kept
 
 
 def test_consequences_for_gene():
