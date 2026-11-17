@@ -129,6 +129,8 @@ am_pathogenicity = 0.564
 heteroplasmy_min = 0.2
 minimum_depth = 10
 min_alt_depth = 5
+af_threshold = 0.01
+min_ac_to_filter = 5
 
 [RunSmallFiltering.de_novo]
 min_child_ab = 0.2

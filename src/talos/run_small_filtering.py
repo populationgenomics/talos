@@ -170,6 +170,8 @@ class StreamingContext:
     am_threshold: float
     spliceai_threshold: float
     avi_threshold: float | None
+    min_ac_to_filter: int
+    af_threshold: float
     critical_csqs: set[str]
     # do as much filtering as possible before considering a variant for de novo inheritance - genotypes are lazy-loaded
     dn_relevant_csqs: set[str]
@@ -315,8 +317,8 @@ def passes_population_rare(gnomad_af: float | None, clinvar_talos: int, af_thres
 def passes_ac_filter(
     info: Any,
     clinvar_talos: int,
-    af_threshold: float = 0.01,
-    min_ac_to_filter: int = 5,
+    af_threshold: float,
+    min_ac_to_filter: int,
 ) -> bool:
     """
     Callset-frequency filter, never removes variants with few instances, overridden by a ClinVar Pathogenic annotation.
@@ -645,7 +647,12 @@ def label_variant(variant: Variant, ctx: StreamingContext) -> int:
     if ctx.derive_af:
         ac, an = first_value(variant.INFO.get('AC')) or 0, variant.INFO.get('AN') or 0
         variant.INFO['AF'] = float(ac) / an if an else 0.0
-    if not passes_ac_filter(variant.INFO, clinvar_talos):
+    if not passes_ac_filter(
+        variant.INFO,
+        clinvar_talos,
+        af_threshold=ctx.af_threshold,
+        min_ac_to_filter=ctx.min_ac_to_filter,
+    ):
         return 0
 
     consequences = structure_consequences(variant, ctx.csq_fields, ctx.mane, ctx.symbol_to_ensg)
@@ -772,6 +779,8 @@ def main(
         am_threshold=config_retrieve(['RunSmallFiltering', 'am_pathogenicity'], 0.564),
         spliceai_threshold=config_retrieve(['RunSmallFiltering', 'spliceai'], 0.5),
         avi_threshold=config_retrieve(['RunSmallFiltering', 'avi'], None),
+        min_ac_to_filter=config_retrieve(['RunSmallFiltering', 'min_ac_to_filter'], 5),
+        af_threshold=config_retrieve(['RunSmallFiltering', 'af_threshold'], 0.01),
         critical_csqs=critical_csqs,
         dn_relevant_csqs=critical_csqs | additional_csqs,
         derive_af=derive_af,
