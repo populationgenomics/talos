@@ -15,6 +15,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     SmallVariant,
+    translate_category,
 )
 from talos.static_values import get_granular_date
 from talos.utils import (
@@ -320,6 +321,56 @@ def test_annotate_dates_confidence_reset_when_not_found():
     variant = new.results['sam1'].variants[0]
     assert not variant.found_in_current_run
     assert not variant.confidence_increase
+
+
+def _multi_moi_results(dates_by_reason: dict[str, str], support: dict[str, set[str]] | None = None) -> ResultData:
+    """One sample, one variant, reported once per MOI reason - each result tagged with category 2 on its own date."""
+    support = support or {}
+    variants = [
+        ReportVariant(
+            sample='sam1',
+            var_data=DATE_VAR,
+            gene='ENSG1',
+            categories={'2': date},
+            max_confidence=3,
+            first_tagged=date,
+            evidence_last_updated=date,
+            reasons=reason,
+            support_vars=support.get(reason, set()),
+        )
+        for reason, date in dates_by_reason.items()
+    ]
+    return ResultData(
+        results={'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'fam1'}, 'variants': variants}},
+    )
+
+
+def test_annotate_dates_multiple_moi_results_per_variant():
+    """
+    A variant reported under several MOIs gives several results at the same coordinates.
+    Every one of them takes the history, the earliest date wins, and none appears as new.
+    """
+    today = get_granular_date()
+    later_date = '2021-01-01'
+    old = _multi_moi_results(
+        {'X_Male': later_date, 'X_Dominant': OLD_DATE},
+        support={'X_Male': {'1-200-A-C'}},
+    )
+    new = _multi_moi_results({'X_Male': today, 'X_Dominant': today})
+
+    annotate_variant_dates_using_prior_results(new, old)
+
+    variants = {var.reasons: var for var in new.results['sam1'].variants}
+    assert len(new.results['sam1'].variants) == TWO_EXPECTED
+    for variant in variants.values():
+        assert variant.found_in_current_run
+        assert variant.first_tagged == OLD_DATE
+        assert variant.evidence_last_updated == OLD_DATE
+        assert variant.categories == {translate_category('2'): OLD_DATE}
+
+    # support variants belong to the result for one MOI, they aren't spread across all results for the variant
+    assert variants['X_Male'].support_vars == {'1-200-A-C'}
+    assert variants['X_Dominant'].support_vars == set()
 
 
 def comp_het_pair(chrom: str, samples: set[str]) -> list[SmallVariant]:
