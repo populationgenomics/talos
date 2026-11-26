@@ -1,0 +1,20 @@
+[GeneratePanelData]
+default_panel = 137
+forced_panels = [1]
+
+[ValidateMOI]
+gnomad_max_af = 0.01
+
+[CreateTalosHTML]
+remove_solved_cases = true
+
+[cohorts.alpha]
+forbidden = ["GENE1"]
+forced_panels = [4059, 76]
+solved_cases = ["SGFATHER"]
+
+[cohorts.alpha.genome]
+external_labels = "gs://alpha/labels.json"
+
+[cohorts.beta]
+hyperlinks = {template = "https://example.org/{sample}"}

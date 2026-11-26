@@ -1,8 +1,5 @@
 # Python codebase default gitignore (github template)
 
-# hail logs
-hail*.log
-
 # scratch files
 /scratch/
 
@@ -98,6 +95,7 @@ dmypy.json
 .nextflow.log*
 nextflow/*test/
 nextflow/processed_annotations/
+nextflow/outputs/
 work/
 
 # mkdocs
@@ -106,3 +104,7 @@ site/
 # Added by code-review-graph
 .code-review-graph/
 CLAUDE.md
+
+# the majority of the large_files default location
+large_files
+!large_files/gather_files.sh

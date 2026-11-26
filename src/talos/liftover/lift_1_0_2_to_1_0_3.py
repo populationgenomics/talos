@@ -29,5 +29,4 @@ def historicvariants(data_dict: dict) -> dict:
     if not data_dict['version'] < '1.0.3':
         raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
 
-    # TODO maybe I never did this?
     return data_dict

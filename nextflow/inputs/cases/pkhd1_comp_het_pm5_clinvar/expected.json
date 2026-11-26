@@ -1,0 +1,35 @@
+{
+  "case": "pkhd1_comp_het_pm5_clinvar",
+  "description": "PKHD1 (AR) compound het: a de novo PM5 hit in trans with a maternal ClinVar P/LP",
+  "pedigree": "nextflow/inputs/pedigree_male_proband.ped",
+  "injected": [
+    "chr6-52043699-T-A",
+    "chr6-52043102-C-G"
+  ],
+  "background_variants": 150,
+  "expected": {
+    "proband": [
+      {
+        "variant": "chr6-52043699-T-A",
+        "gene": "PKHD1",
+        "categories": [
+          "PM5",
+          "De Novo"
+        ],
+        "support_vars": [
+          "chr6-52043102-C-G"
+        ]
+      },
+      {
+        "variant": "chr6-52043102-C-G",
+        "gene": "PKHD1",
+        "categories": [
+          "ClinVar P/LP"
+        ],
+        "support_vars": [
+          "chr6-52043699-T-A"
+        ]
+      }
+    ]
+  }
+}

@@ -3,9 +3,11 @@
 nextflow.enable.dsl=2
 
 include { AnnotateMitoVcf } from './modules/talos/AnnotateMitoVcf/main'
+include { AnnotateVcfWithFreshClinvar } from './modules/talos/AnnotateVcfWithFreshClinvar/main'
+include { ConcatLabelledVcfs } from './modules/talos/ConcatLabelledVcfs/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
-include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
-include { RunHailFilteringSv } from './modules/talos/RunHailFilteringSv/main'
+include { RunSvFiltering } from './modules/talos/RunSvFiltering/main'
+include { RunSmallFiltering } from './modules/talos/RunSmallFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
 include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
@@ -16,7 +18,14 @@ workflow TALOS {
 		ch_mane
 		ch_gff
 		ch_ref_genome
-		ch_mts
+		// one entry per cohort: [cohort, meta], meta being the cohort's row Map as built by TALOS_PIPELINE - pedigree
+		// and config are Paths, the optional history, ext_ids, seqr_map, mito and str are a Path or [], and
+		// analysis_dir/report_dir are where its results and HTML report are published. has_sv says whether an
+		// entry for this cohort will arrive on ch_sv_annotated
+		ch_meta
+		// one entry per annotated shard: [cohort, vcf]
+		ch_shards
+		// one entry per cohort with SV data: [cohort, vcf, tbi]
 		ch_sv_annotated
 
     main:
@@ -24,24 +33,26 @@ workflow TALOS {
     // we open them as a channel, and pass the channel through to the method
     ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true).first()
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true).first()
-    ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
     def timestamp = new java.util.Date().format('yyyy-MM-dd')
 
     // check if clinvar and panelapp data exist using the timestamp
-    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
-    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.ht"
+    // the "all" VCF carries every decision (Benign included), and is the echtvar annotation source
+    // for both the small-variant and mito paths - the zip below is the encoded form of it
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.json"
+    String current_clinvarbitration_zip = "${params.processed_annotations}/clinvarbitration_${current_month}.zip"
 
-    if (!file(current_clinvarbitration_pm5).exists()) {
-        println "ClinvArbitration data for this month (${current_clinvarbitration_pm5}) doesn't exist, run the Talos Prep workflow"
+    if (!file(current_clinvarbitration_pm5).exists() || !file(current_clinvarbitration_zip).exists()) {
+        println "ClinvArbitration data for this month (=${current_clinvarbitration_pm5}, ${current_clinvarbitration_zip}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
 
     // read in each Clinvar input source as channel
-    ch_clinvar_all = channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
     ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
+    // pre-encoded by the preparation workflow, once per month - fans out across every shard of every cohort
+    ch_clinvar_zip = channel.fromPath(current_clinvarbitration_zip, checkIfExists: true).first()
 
     String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
 
@@ -51,146 +62,128 @@ workflow TALOS {
     }
     ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
 
-    // run pre-Talos startup checks
+    // run pre-Talos startup checks, tasting the first shard to arrive for each cohort. Grouping the
+    // cohort first would delay the checks until every shard was annotated, which is the opposite of
+    // what they are for - the cost is that which shard gets checked can vary between runs, so this
+    // (cheap) process is not reliably -resume cacheable
+    ch_first_shards = ch_shards
+        .unique { it -> it[0] }
+        .join(ch_meta)
+        .map { cohort, vcf, meta -> tuple(cohort, vcf, meta.pedigree, meta.config) }
+
     StartupChecks(
-        ch_mts,
-        ch_clinvar_all,
+        ch_first_shards,
     )
 
-    // UnifiedPanelAppParser
-    ch_panel_app_inputs = StartupChecks.out
-        .join(ch_mts)
-        .map { cohort, check_file, _mts, pedigree, config, _history, _ext, _seqr, _mito ->
-            tuple(cohort, check_file, config, pedigree)
-        }
-
     UnifiedPanelAppParser(
-        ch_panel_app_inputs,
+        StartupChecks.out
+            .join(ch_meta)
+            .map { cohort, check_file, meta -> tuple(cohort, check_file, meta.config, meta.pedigree, meta.analysis_dir) },
     	ch_panelapp,
     	ch_hpo_file,
     )
 
-    ch_run_hail_inputs = ch_mts
-        .join(UnifiedPanelAppParser.out)
-        .join(StartupChecks.out)
-        .map { cohort, mts, pedigree, config, _history, _ext, _seqr, _mito, panelapp_data, check_file ->
-            tuple(cohort, mts, panelapp_data, check_file, pedigree, config)
-        }
+    // [cohort, panelapp_data, meta] - the per-cohort context every downstream stage draws from. Waiting on
+    // UnifiedPanelAppParser also means waiting on StartupChecks, which feeds it
+    ch_ctx = UnifiedPanelAppParser.out.join(ch_meta)
 
-    RunHailFiltering(
-        ch_run_hail_inputs,
-        ch_clinvar_all,
+    // apply this run's ClinVar to every shard, then filter and label each one independently
+    AnnotateVcfWithFreshClinvar(
+        ch_shards,
+        ch_clinvar_zip,
+    )
+
+    // combine (not join) - the per-cohort context is repeated across every shard of that cohort
+    RunSmallFiltering(
+        AnnotateVcfWithFreshClinvar.out
+            .combine(ch_ctx, by: 0)
+            .map { cohort, vcf, panelapp_data, meta -> tuple(cohort, vcf, panelapp_data, meta.pedigree, meta.config) },
+        ch_mane,
         ch_clinvar_pm5,
+    )
+
+    // gather the labelled shards back to one VCF per cohort
+    ConcatLabelledVcfs(
+        RunSmallFiltering.out
+            .groupTuple(by: 0)
+            .join(ch_meta)
+            .map { cohort, vcfs, indexes, meta -> tuple(cohort, vcfs, indexes, meta.analysis_dir) },
     )
 
     // filter & label any annotated SV VCFs. ch_sv_annotated only carries cohorts that had SV data, so this
     // inner join naturally restricts the process to those cohorts
-    ch_run_hail_sv_inputs = ch_sv_annotated
-        .join(UnifiedPanelAppParser.out)
-        .join(ch_mts)
-        .map { cohort, sv_vcf, sv_idx, panelapp_data, _mts, pedigree, config, _history, _ext, _seqr, _mito ->
-            tuple(cohort, sv_vcf, sv_idx, panelapp_data, pedigree, config)
-        }
-
-    RunHailFilteringSv(
-        ch_run_hail_sv_inputs,
+    RunSvFiltering(
+        ch_sv_annotated
+            .join(ch_ctx)
+            .map { cohort, sv_vcf, sv_idx, panelapp_data, meta ->
+                tuple(cohort, sv_vcf, sv_idx, panelapp_data, meta.pedigree, meta.config, meta.analysis_dir)
+            },
         ch_mane,
     )
 
-    // re-attach an empty placeholder for every cohort without SV data, so ValidateMOI runs for all cohorts.
-    // Deliberately not `join(..., remainder: true)`: the shape of a remainder emission depends on
-    // Nextflow inferring the right-hand channel's arity, which it cannot do when that channel never
-    // emits (no cohort had SV data). It then emits the bare cohort key instead of [cohort, null], and
-    // indexing that String yields its first character, silently emptying every downstream join.
-    // Offering [] for every cohort and letting a real SV VCF displace it has one fixed shape
-    // TL; DR: mixing SV-having and SV-absent cohorts in the same run killed all tasks downstream of here in old syntax
-    ch_sv_placeholder = ch_mts.map { row -> tuple(row[0], []) }
-
-    ch_sv_resolved = RunHailFilteringSv.out
+    // one entry per cohort: the filtered SV VCF, or [] for a cohort with no SV data. Which cohorts have SVs is
+    // known up front (meta.has_sv), so the rest are given [] directly and never wait on RunSvFiltering.
+    // Deliberately not `join(..., remainder: true)`: when the right-hand channel never emits, Nextflow cannot
+    // infer its arity and emits the bare cohort key instead of [cohort, null], silently emptying every downstream join
+    ch_sv_resolved = RunSvFiltering.out
         .map { cohort, sv_vcf, _sv_idx -> tuple(cohort, sv_vcf) }
-        .mix(ch_sv_placeholder)
-        .groupTuple(by: 0)
-        .map { cohort, sv_vcfs -> tuple(cohort, sv_vcfs.find { it } ?: []) }
+        .mix(ch_meta.filter { row -> !row[1].has_sv }.map { row -> tuple(row[0], []) })
 
-    // surprise! It's Mito data!
-    ch_mito_joined = ch_mts
-        .join(UnifiedPanelAppParser.out)
-        .join(StartupChecks.out)
-        .map { cohort, _mts, pedigree, config, _history, _ext, _seqr, mito, panelapp_data, check_file ->
-          tuple(cohort, mito, panelapp_data, pedigree, config)
-    }
-
-    // absent mito data is [] (falsy), a real VCF is a truthy Path
-    ch_mito_branched = ch_mito_joined.branch {
-        real:  it[1]
-        empty: true
-    }
-
-    ch_mito_for_annotation = ch_mito_branched.real
-        .map { cohort, mito, panelapp, ped, config ->
-            tuple(cohort, mito, panelapp, ped, config,
-                file(params.mitimpact_zip, checkIfExists: true),
-                file(params.mitotip_zip, checkIfExists: true),
-                file(params.napogee_zip, checkIfExists: true))
-        }
-
+    // surprise! It's Mito data! Same shape as the SV stream: annotated for cohorts that have it, [] for the rest
     AnnotateMitoVcf(
-        ch_mito_for_annotation,
+        ch_ctx
+            .filter { row -> row[2].mito }
+            .map { cohort, panelapp_data, meta ->
+                tuple(cohort, meta.mito, panelapp_data, meta.pedigree, meta.config,
+                      file(params.mitimpact_zip, checkIfExists: true),
+                      file(params.mitotip_zip, checkIfExists: true)
+                )
+            },
         ch_ref_genome,
         ch_gff,
-        ch_clinvar_all,
+        ch_clinvar_zip,
     )
 
     ch_mito_resolved = AnnotateMitoVcf.out
-        .mix(ch_mito_branched.empty.map { cohort, mito, _pa, _ped, _cfg -> tuple(cohort, mito) })
+        .mix(ch_meta.filter { row -> !row[1].mito }.map { row -> tuple(row[0], []) })
 
     // Validate MOI of all variants
-    ch_validate_moi_inputs = RunHailFiltering.out
-        .join(UnifiedPanelAppParser.out)
-        .join(ch_mts)
-        .join(ch_mito_resolved)
-        .join(ch_sv_resolved)
-        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, _mts, pedigree, config, history, _ext, _seqr, _mito, anno_mito, anno_sv ->
-            tuple(cohort, labelled_vcf, labelled_vcf_index, anno_sv, anno_mito, panelapp_out, pedigree, config, history)
-        }
-
     ValidateMOI(
-        ch_validate_moi_inputs,
+        ConcatLabelledVcfs.out
+            .join(ch_ctx)
+            .join(ch_mito_resolved)
+            .join(ch_sv_resolved)
+            .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_data, meta, anno_mito, anno_sv ->
+                tuple(cohort, labelled_vcf, labelled_vcf_index, anno_sv, anno_mito, meta.str, panelapp_data,
+                      meta.pedigree, meta.config, meta.history)
+            },
         timestamp,
     )
 
     // Flag any relevant HPO terms
-    ch_hpo_inputs = ValidateMOI.out
-        .join(UnifiedPanelAppParser.out)
-        .join(ch_mts)
-        .map { cohort, talos_result_json, panelapp_data, _mts, _pedigree, config, _history, _ext, _seqr, _mito ->
-            tuple(cohort, talos_result_json, panelapp_data, config)
-        }
-
     HPOFlagging(
-        ch_hpo_inputs,
+        ValidateMOI.out
+            .join(ch_ctx)
+            .map { cohort, talos_result_json, panelapp_data, meta ->
+                tuple(cohort, talos_result_json, panelapp_data, meta.config, meta.analysis_dir)
+            },
         ch_gen2phen,
-        ch_phenio,
+        ch_hpo_file,
         timestamp,
     )
 
     // Generate HTML report
-    ch_create_html_inputs = HPOFlagging.out
-        .join(UnifiedPanelAppParser.out)
-        .join(ch_mts)
-        .map { cohort, result_json, panelapp_data, _mts, _pedigree, config, _history, ext, seqr, _mito ->
-            tuple(cohort, result_json, panelapp_data, config, ext, seqr)
-        }
-
     CreateTalosHTML(
-        ch_create_html_inputs,
+        HPOFlagging.out
+            .join(ch_ctx)
+            .map { cohort, result_json, panelapp_data, meta ->
+                tuple(cohort, result_json, panelapp_data, meta.config, meta.ext_ids, meta.seqr_map, meta.report_dir)
+            },
         timestamp,
     )
 
     emit:
     	json = HPOFlagging.out
+    	// [cohort, html]
     	html = CreateTalosHTML.out
-    	labelled = RunHailFiltering.out
-    	labelled_sv = RunHailFilteringSv.out
-    	panelapp = UnifiedPanelAppParser.out
 }

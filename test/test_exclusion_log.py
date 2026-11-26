@@ -23,7 +23,6 @@ def _enable_super_logging(path: Path) -> None:
     """Force super logging on at the configured path, regardless of the project config file."""
     talos_config._config = dict(talos_config._config or {})  # noqa: SLF001
     validate = dict(talos_config._config.get('ValidateMOI', {}))  # noqa: SLF001
-    validate['super_logging'] = True
     validate['super_logging_path'] = str(path)
     talos_config._config['ValidateMOI'] = validate  # noqa: SLF001
     exclusion_log.reset_exclusion_logger()
@@ -48,16 +47,13 @@ def _read_records(path: Path) -> list[dict]:
 def test_disabled_logger_writes_nothing(tmp_path, restore_exclusion_logger):  # noqa: ARG001
     """When super_logging is disabled, the file is never created and record() is a no-op."""
     out = tmp_path / 'should_not_exist.jsonl'
-    # explicitly set to false
     talos_config._config = dict(talos_config._config or {})  # noqa: SLF001
     validate = dict(talos_config._config.get('ValidateMOI', {}))  # noqa: SLF001
-    validate['super_logging'] = False
-    validate['super_logging_path'] = str(out)
+    validate['super_logging_path'] = None
     talos_config._config['ValidateMOI'] = validate  # noqa: SLF001
     exclusion_log.reset_exclusion_logger()
 
     logger = exclusion_log.get_exclusion_logger()
-    assert logger.enabled is False
 
     variant = SmallVariant(
         info={'gnomad_af': 0.5, 'gene_id': 'GENEX', 'ac': 0, 'af': 0.0},

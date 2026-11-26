@@ -49,9 +49,10 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
                 config_path = environ[ENV_VAR]
             except KeyError as ke:
                 logger.warning(f"Config variable '{ENV_VAR}' was not set, no config could be loaded.")
-                if default is not None:
+                # compare against the sentinel, not None - default=None is a legitimate default
+                if default is not Unsupplied:
                     return default
-                raise ke
+                raise ConfigError(f'No default for {key}, and {ENV_VAR} is not set') from ke
             if config_path is None:
                 raise ValueError(f'Set the environment variable {ENV_VAR}, or provide a specfic config path')
         elif config_path is None:

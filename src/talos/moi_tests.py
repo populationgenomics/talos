@@ -6,7 +6,6 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 # mypy: ignore-errors
 # ruff: noqa: ERA001
 from abc import abstractmethod
-from dataclasses import dataclass
 from itertools import chain
 from typing import ClassVar
 
@@ -18,7 +17,6 @@ from talos.models import VARIANT_MODELS, ReportVariant, ShortTandemRepeat, Small
 from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
-HEMI_CHROMS = {'chrX, chrY'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
@@ -36,384 +34,172 @@ def get_str_var_data(var: VARIANT_MODELS, sample_id: str) -> VARIANT_MODELS:
     return var
 
 
-@dataclass
-class GlobalFilter:
+def _cfg(key: str, default: float | None = None) -> float | None:
+    """Shorthand for reading a ValidateMOI threshold from config."""
+    return config_retrieve(['ValidateMOI', key], default)
+
+
+class FrequencyFilter:
     """
-    A Filter class, used to apply to any non-ClinVar Pathogenic Variants
-    This pulls in a number of thresholds from the config file, and contains a 'too_common' method
-    A variant run through this method will return true based on the thresholds if it's 'too_common'
+    Base class for population/callset frequency filters.
+
+    too_common() is fixed here as a template; subclasses only declare thresholds and a label.
+    A threshold of None (or an empty dict) disables that check, so a subclass declares exactly the checks it wants.
     """
 
-    # minimum variant AC to run callset frequency filters
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_max_af'])
-    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_sv_max_af'])
+    # used in exclusion log details; SVs are logged as f'{label}_sv'
+    label: ClassVar[str]
 
-    # a lookup of the attribute name vs. the corresponding configurable filter to be used on small variants
-    small_dict: ClassVar[dict[str, float | int]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'gnomad_max_af']),
-        'gnomad_homalt': config_retrieve(['ValidateMOI', 'gnomad_max_homozygotes']),
-    }
+    # minimum variant AC before any callset frequency check is applied
+    ac_min: ClassVar[int] = _cfg('min_callset_ac_to_filter')
 
-    # only to be applied on chrX/Y
-    small_gnomad_hemi: ClassVar[int] = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
+    # small variants: info-field -> max value, plus callset AF
+    small_gnomad: ClassVar[dict[str, float | int]] = {}
+    small_callset_max_af: ClassVar[float | None] = None
 
-    # filters specific to SVs
-    # todo the field could have a different name
-    sv_dict: ClassVar[dict[str, float]] = {
-        'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
-    }
+    # SVs: info-field -> max value, plus callset AF and/or AC
+    sv_gnomad: ClassVar[dict[str, float]] = {}
+    sv_callset_max_af: ClassVar[float | None] = None
+    sv_callset_max_ac: ClassVar[int | None] = None
 
-    def too_common(  # noqa: PLR0911
-        self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
-    ) -> bool:
+    def too_common(self, variant: VARIANT_MODELS, applied_moi: str | None = None) -> bool:
         """
-        Check if a variant is too common in the population
+        Check if a variant is too common in the population or callset
 
         Args:
-            variant (SmallVariant | ShortTandemRepeat | StructuralVariant): the variant to check
+            variant (VARIANT_MODELS): the variant to check
             applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
 
         Returns:
             bool: True if the variant is too common
         """
-
-        ex_logger = get_exclusion_logger()
-        gene = variant.info.get('gene_id') if isinstance(variant.info.get('gene_id'), str) else None
-
-        # check against each small-variant filter
-        if isinstance(variant, SmallVariant):
-            for key, threshold in self.small_dict.items():
-                if key in variant.info and variant.info[key] > threshold:
-                    ex_logger.record(
-                        variant=variant,
-                        gene=gene,
-                        sample=None,
-                        applied_moi=applied_moi,
-                        stage='frequency_filter',
-                        reason=f'{key}_too_high',
-                        details={'value': variant.info[key], 'threshold': threshold, 'filter': 'global'},
-                    )
-                    return True
-
-            # if there are sufficient instances, check for frequency in the callset
-            if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
-                ex_logger.record(
-                    variant=variant,
-                    gene=gene,
-                    sample=None,
-                    applied_moi=applied_moi,
-                    stage='frequency_filter',
-                    reason='callset_af_too_high',
-                    details={
-                        'ac': variant.info['ac'],
-                        'af': variant.info['af'],
-                        'ac_threshold': self.ac_threshold,
-                        'af_threshold': self.small_af,
-                        'filter': 'global',
-                    },
-                )
-                return True
-
-            # on sex chroms, apply hemi-count filter
-            if variant.coordinates.chrom in HEMI_CHROMS:
-                hemi_count = variant.info.get('gnomad_ac_xy', 0)
-                if hemi_count > self.small_gnomad_hemi:
-                    ex_logger.record(
-                        variant=variant,
-                        gene=gene,
-                        sample=None,
-                        applied_moi=applied_moi,
-                        stage='frequency_filter',
-                        reason='gnomad_ac_xy_too_high',
-                        details={'value': hemi_count, 'threshold': self.small_gnomad_hemi, 'filter': 'global'},
-                    )
-                    return True
-                return False
-
-        # check against the SV filters
-        elif isinstance(variant, StructuralVariant):
-            for key, threshold in self.sv_dict.items():
-                if key in variant.info and variant.info[key] > threshold:
-                    ex_logger.record(
-                        variant=variant,
-                        gene=gene,
-                        sample=None,
-                        applied_moi=applied_moi,
-                        stage='frequency_filter',
-                        reason=f'{key}_too_high',
-                        details={'value': variant.info[key], 'threshold': threshold, 'filter': 'global_sv'},
-                    )
-                    return True
-
-            # if there are sufficient instances, check for frequency in the callset
-            if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.sv_af:
-                ex_logger.record(
-                    variant=variant,
-                    gene=gene,
-                    sample=None,
-                    applied_moi=applied_moi,
-                    stage='frequency_filter',
-                    reason='callset_sv_af_too_high',
-                    details={
-                        'ac': variant.info['ac'],
-                        'af': variant.info['af'],
-                        'ac_threshold': self.ac_threshold,
-                        'af_threshold': self.sv_af,
-                        'filter': 'global_sv',
-                    },
-                )
-                return True
-
-        elif isinstance(variant, ShortTandemRepeat):
+        if isinstance(variant, ShortTandemRepeat):
             return False
 
-        else:
-            raise ValueError('Variant type not recognised')
+        if isinstance(variant, SmallVariant):
+            return self._gnomad_too_common(
+                variant, applied_moi, self.small_gnomad, self.label
+            ) or self._callset_too_common(variant, applied_moi, self.small_callset_max_af, None, self.label)
 
+        if isinstance(variant, StructuralVariant):
+            sv_label = f'{self.label}_sv'
+            return self._gnomad_too_common(variant, applied_moi, self.sv_gnomad, sv_label) or self._callset_too_common(
+                variant, applied_moi, self.sv_callset_max_af, self.sv_callset_max_ac, sv_label
+            )
+
+        raise ValueError('Variant type not recognised')
+
+    @staticmethod
+    def _record(variant: VARIANT_MODELS, applied_moi: str | None, reason: str, details: dict) -> None:
+        """Emit a variant-level frequency_filter exclusion record."""
+        gene = variant.info.get('gene_id')
+        get_exclusion_logger().record(
+            variant=variant,
+            gene=gene if isinstance(gene, str) else None,
+            sample=None,
+            applied_moi=applied_moi,
+            stage='frequency_filter',
+            reason=reason,
+            details=details,
+        )
+
+    def _gnomad_too_common(
+        self,
+        variant: VARIANT_MODELS,
+        applied_moi: str | None,
+        thresholds: dict[str, float | int],
+        label: str,
+    ) -> bool:
+        """True if any info field exceeds its configured maximum."""
+        for key, threshold in thresholds.items():
+            value = variant.info.get(key)
+            if value is not None and value > threshold:
+                self._record(
+                    variant,
+                    applied_moi,
+                    f'{key}_too_high',
+                    {'value': value, 'threshold': threshold, 'filter': label},
+                )
+                return True
         return False
 
-
-@dataclass
-class DominantFilter:
-    """
-    Similar to the GlobalFilter, but with stricter thresholds
-    This is designed to run on variants being considered for Dominant inheritance
-    """
-
-    # minimum variant AC to run callset frequency filters
-    ac_min: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'dominant_callset_max_ac'])
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_max_af'])
-    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_sv_max_af'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict: ClassVar[dict[str, float | int]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_af']),
-        'gnomad_ac': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_ac']),
-        'gnomad_homalt': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_homozygotes']),
-    }
-
-    # specific to SVs
-    sv_dict: ClassVar[dict[str, float]] = {
-        'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'dominant_gnomad_sv_max_af']),
-    }
-
-    def too_common(
-        self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
+    def _callset_too_common(
+        self,
+        variant: VARIANT_MODELS,
+        applied_moi: str | None,
+        max_af: float | None,
+        max_ac: int | None,
+        label: str,
     ) -> bool:
-        """
-        Check if a variant is too common in the population
-
-        Args:
-            variant (SmallVariant | ShortTandemRepeat | StructuralVariant): the variant to check
-            applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
-
-        Returns:
-            bool: True if the variant is too common
-        """
-
-        ex_logger = get_exclusion_logger()
-        gene = variant.info.get('gene_id') if isinstance(variant.info.get('gene_id'), str) else None
-
-        # check against each small-variant filter
-        if isinstance(variant, SmallVariant):
-            for key, threshold in self.small_dict.items():
-                if key in variant.info and variant.info[key] > threshold:
-                    ex_logger.record(
-                        variant=variant,
-                        gene=gene,
-                        sample=None,
-                        applied_moi=applied_moi,
-                        stage='frequency_filter',
-                        reason=f'{key}_too_high',
-                        details={'value': variant.info[key], 'threshold': threshold, 'filter': 'dominant'},
-                    )
-                    return True
-            if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
-                ex_logger.record(
-                    variant=variant,
-                    gene=gene,
-                    sample=None,
-                    applied_moi=applied_moi,
-                    stage='frequency_filter',
-                    reason='callset_af_too_high',
-                    details={
-                        'ac': variant.info['ac'],
-                        'af': variant.info['af'],
-                        'ac_threshold': self.ac_threshold,
-                        'af_threshold': self.small_af,
-                        'filter': 'dominant',
-                    },
-                )
-                return True
-
-        elif isinstance(variant, StructuralVariant):
-            for key, threshold in self.sv_dict.items():
-                if key in variant.info and variant.info[key] > threshold:
-                    ex_logger.record(
-                        variant=variant,
-                        gene=gene,
-                        sample=None,
-                        applied_moi=applied_moi,
-                        stage='frequency_filter',
-                        reason=f'{key}_too_high',
-                        details={'value': variant.info[key], 'threshold': threshold, 'filter': 'dominant_sv'},
-                    )
-                    return True
-            if variant.info['ac'] > self.ac_min and (
-                (variant.info['af'] > self.sv_af) or (variant.info['ac'] > self.ac_threshold)
-            ):
-                ex_logger.record(
-                    variant=variant,
-                    gene=gene,
-                    sample=None,
-                    applied_moi=applied_moi,
-                    stage='frequency_filter',
-                    reason='callset_sv_freq_too_high',
-                    details={
-                        'ac': variant.info['ac'],
-                        'af': variant.info['af'],
-                        'ac_min': self.ac_min,
-                        'ac_threshold': self.ac_threshold,
-                        'af_threshold': self.sv_af,
-                        'filter': 'dominant_sv',
-                    },
-                )
-                return True
-
-        elif isinstance(variant, ShortTandemRepeat):
+        """True if, given enough callset observations, the callset AF or AC exceeds its maximum."""
+        if max_af is None and max_ac is None:
             return False
 
-        else:
-            raise ValueError('Variant type not recognised')
+        # SV callsets may lack AC/AF; treated as 0, which falls under ac_min and skips this filter
+        ac, af = variant.info.get('ac', 0), variant.info.get('af', 0)
+        if ac <= self.ac_min:
+            return False
 
-        return False
-
-
-@dataclass
-class ClinVarFilter:
-    """
-    This will apply more lenient filters to ClinVar Pathogenic variants
-    """
-
-    # minimum variant AC to run callset frequency filters
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict: ClassVar[dict[str, float]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_gnomad_max_af']),
-    }
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_callset_max_af'])
-
-    def too_common(self, variant: SmallVariant, applied_moi: str | None = None) -> bool:
-        """
-        Check if a variant is too common in the population
-
-        Args:
-            variant (SmallVariant): the variant to check
-            applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        ex_logger = get_exclusion_logger()
-        gene = variant.info.get('gene_id') if isinstance(variant.info.get('gene_id'), str) else None
-
-        for key, threshold in self.small_dict.items():
-            if key in variant.info and variant.info[key] > threshold:
-                ex_logger.record(
-                    variant=variant,
-                    gene=gene,
-                    sample=None,
-                    applied_moi=applied_moi,
-                    stage='frequency_filter',
-                    reason=f'{key}_too_high',
-                    details={'value': variant.info[key], 'threshold': threshold, 'filter': 'clinvar'},
-                )
-                return True
-
-        if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
-            ex_logger.record(
-                variant=variant,
-                gene=gene,
-                sample=None,
-                applied_moi=applied_moi,
-                stage='frequency_filter',
-                reason='callset_af_too_high',
-                details={
-                    'ac': variant.info['ac'],
-                    'af': variant.info['af'],
-                    'ac_threshold': self.ac_threshold,
-                    'af_threshold': self.small_af,
-                    'filter': 'clinvar',
+        if (max_af is not None and af > max_af) or (max_ac is not None and ac > max_ac):
+            self._record(
+                variant,
+                applied_moi,
+                'callset_af_too_high',
+                {
+                    'ac': ac,
+                    'af': af,
+                    'ac_min': self.ac_min,
+                    'af_threshold': max_af,
+                    'ac_threshold': max_ac,
+                    'filter': label,
                 },
             )
             return True
         return False
 
 
-@dataclass
-class ClinVarDominantFilter:
-    """
-    This will apply more lenient filters to ClinVar Pathogenic variants
-    Designed to run on Dominant variants
-    """
+class GlobalFilter(FrequencyFilter):
+    """Default thresholds, applied to non-ClinVar-Pathogenic variants under any MOI."""
 
-    # minimum variant AC to run callset frequency filters
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict: ClassVar[dict[str, float]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_dominant_gnomad_max_af']),
+    label = 'global'
+    small_gnomad: ClassVar[dict[str, float | int]] = {
+        'gnomad_af': _cfg('gnomad_max_af'),
+        'gnomad_homalt': _cfg('gnomad_max_homozygotes'),
     }
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_dominant_callset_max_af'])
+    small_callset_max_af = _cfg('callset_max_af')
+    sv_gnomad: ClassVar[dict[str, float]] = {'gnomad_sv_af': _cfg('gnomad_sv_max_af')}
+    sv_callset_max_af = _cfg('callset_sv_max_af')
 
-    def too_common(self, variant: SmallVariant, applied_moi: str | None = None) -> bool:
-        """
-        Check if a variant is too common in the population
 
-        Args:
-            variant (SmallVariant): the variant to check
-            applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
+class DominantFilter(FrequencyFilter):
+    """Stricter thresholds, applied to non-ClinVar-Pathogenic variants under Dominant MOIs."""
 
-        Returns:
-            bool: True if the variant is too common
-        """
-        ex_logger = get_exclusion_logger()
-        gene = variant.info.get('gene_id') if isinstance(variant.info.get('gene_id'), str) else None
+    label = 'dominant'
+    small_gnomad: ClassVar[dict[str, float | int]] = {
+        'gnomad_af': _cfg('dominant_gnomad_max_af'),
+        'gnomad_ac': _cfg('dominant_gnomad_max_ac'),
+        'gnomad_homalt': _cfg('dominant_gnomad_max_homozygotes'),
+    }
+    small_callset_max_af = _cfg('dominant_callset_max_af')
+    sv_gnomad: ClassVar[dict[str, float]] = {'gnomad_sv_af': _cfg('dominant_gnomad_sv_max_af')}
+    sv_callset_max_af = _cfg('dominant_callset_sv_max_af')
+    sv_callset_max_ac = _cfg('dominant_callset_max_ac')
 
-        for key, threshold in self.small_dict.items():
-            if key in variant.info and variant.info[key] > threshold:
-                ex_logger.record(
-                    variant=variant,
-                    gene=gene,
-                    sample=None,
-                    applied_moi=applied_moi,
-                    stage='frequency_filter',
-                    reason=f'{key}_too_high',
-                    details={'value': variant.info[key], 'threshold': threshold, 'filter': 'clinvar_dominant'},
-                )
-                return True
 
-        if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
-            ex_logger.record(
-                variant=variant,
-                gene=gene,
-                sample=None,
-                applied_moi=applied_moi,
-                stage='frequency_filter',
-                reason='callset_af_too_high',
-                details={
-                    'ac': variant.info['ac'],
-                    'af': variant.info['af'],
-                    'ac_threshold': self.ac_threshold,
-                    'af_threshold': self.small_af,
-                    'filter': 'clinvar_dominant',
-                },
-            )
-            return True
-        return False
+class ClinVarFilter(FrequencyFilter):
+    """Lenient thresholds, applied to ClinVar-Pathogenic variants under any MOI."""
+
+    label = 'clinvar'
+    small_gnomad: ClassVar[dict[str, float | int]] = {'gnomad_af': _cfg('clinvar_gnomad_max_af')}
+    small_callset_max_af = _cfg('clinvar_callset_max_af')
+
+
+class ClinVarDominantFilter(FrequencyFilter):
+    """Lenient thresholds, applied to ClinVar-Pathogenic variants under Dominant MOIs."""
+
+    label = 'clinvar_dominant'
+    small_gnomad: ClassVar[dict[str, float | int]] = {'gnomad_af': _cfg('clinvar_dominant_gnomad_max_af')}
+    small_callset_max_af = _cfg('clinvar_dominant_callset_max_af')
 
 
 class MOIRunner:
@@ -491,6 +277,11 @@ class BaseMoi:
     Definition of the MOI base class
     """
 
+    # frequency filters applied to non-ClinVar and ClinVar-Pathogenic variants respectively;
+    # Dominant-style MOIs override these with the stricter Dominant pair
+    frequency_filter_cls: ClassVar[type[FrequencyFilter]] = GlobalFilter
+    clinvar_filter_cls: ClassVar[type[FrequencyFilter]] = ClinVarFilter
+
     def __init__(self, pedigree: PedigreeParser, applied_moi: str):
         """
         base class
@@ -499,10 +290,10 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'], 5)
-        self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
-        self.global_filter = GlobalFilter()
-        self.clinvar_filter = ClinVarFilter()
+        self.minimum_alt_depth = config_retrieve(['RunSmallFiltering', 'min_alt_depth'], 5)
+        self.minimum_depth = config_retrieve(['RunSmallFiltering', 'minimum_depth'], 10)
+        self.global_filter = self.frequency_filter_cls()
+        self.clinvar_filter = self.clinvar_filter_cls()
 
     @abstractmethod
     def run(
@@ -793,14 +584,14 @@ class BaseMoi:
 class DominantAutosomal(BaseMoi):
     """This class can also be called by the X-linked Dominant, in which case the Applied_MOI by name is overridden."""
 
+    frequency_filter_cls = DominantFilter
+    clinvar_filter_cls = ClinVarDominantFilter
+
     def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Autosomal Dominant'):
         """
         Simplest: AD MOI
         """
-
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -1007,11 +798,12 @@ class XDominant(BaseMoi):
     re-implement here, but don't permit Male X-Homs
     """
 
+    frequency_filter_cls = DominantFilter
+    clinvar_filter_cls = ClinVarDominantFilter
+
     def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_Dominant'):
         """accept male hets and homs, and female hets without support."""
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -1070,11 +862,12 @@ class XPseudoDominantFemale(BaseMoi):
     Basically a Dominant MOI to be applied to Recessive genes, and results will be labelled as cautionary
     """
 
+    frequency_filter_cls = DominantFilter
+    clinvar_filter_cls = ClinVarDominantFilter
+
     def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_PseudoDominant'):
         """Accept male hets and homs, and female hets without support/"""
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -1156,11 +949,12 @@ class XRecessiveMale(BaseMoi):
     effectively the same as AutosomalDominant?
     """
 
+    frequency_filter_cls = DominantFilter
+    clinvar_filter_cls = ClinVarDominantFilter
+
     def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_Male'):
         """Set parameters specific to male X tests."""
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -1369,6 +1163,9 @@ class Mitochondrial(BaseMoi):
     ignore males, accept female comp-het only
     """
 
+    frequency_filter_cls = DominantFilter
+    clinvar_filter_cls = ClinVarDominantFilter
+
     def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Mitochondrial'):
         """
         Set parameters specific to mitochondrial.
@@ -1376,8 +1173,6 @@ class Mitochondrial(BaseMoi):
         inherited will never be disqualifying. This is basically a presence in proband test.
         """
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
         self.plasmy_threshold = config_retrieve(['ValidateMOI', 'heteroplasmy_min'], 0.2)
 
     def run(

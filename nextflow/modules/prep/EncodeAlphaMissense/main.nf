@@ -1,5 +1,6 @@
 process EncodeAlphaMissense {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         path tsv
@@ -11,7 +12,7 @@ process EncodeAlphaMissense {
         """
         set -euo pipefail
 
-        python -m talos.annotation_scripts.parse_alphamissense \
+        python -m talos.scripts.parse_alphamissense \
             --input ${tsv} \
             --output alphamissense.vcf.gz
 

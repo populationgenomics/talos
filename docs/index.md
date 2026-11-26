@@ -36,8 +36,8 @@ A full description of the method and its validation in large clinical and resear
 - :material-cog: **[Configuration](Configuration.md)**
   Full reference for the Talos TOML config and Nextflow parameters.
 
-- :material-abacus: **[SVs](SV.md)**
-  Details on the SV workflow and results.
+- :material-cog: **[SV Annotation](SvAnnotation.md)**
+  Project document for the SV annotation and integration project.
 
 - :material-history: **[Changelog](changelog.md)**
   Release history and version-by-version changes.

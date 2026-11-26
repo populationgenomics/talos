@@ -1,5 +1,6 @@
 process ParseManeIntoJson {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
     	path mane_summary
@@ -11,9 +12,8 @@ process ParseManeIntoJson {
         """
         set -euo pipefail
 
-        python -m talos.annotation_scripts.parse_mane_into_json \
+        python -m talos.scripts.parse_mane_into_json \
             --input ${mane_summary} \
-            --output mane.json \
-            --format json
+            --output mane.json
         """
 }

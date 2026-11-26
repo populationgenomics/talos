@@ -1,5 +1,7 @@
 process ResummariseRawSubmissions {
     container params.container
+    // the pathogenic-only VCF is an intermediate for the PM5 codon map, only the "all" VCF and the TSV are kept
+    publishDir params.processed_annotations, mode: 'copy', pattern: '*{.all.vcf.bgz,.all.vcf.bgz.tbi,.tsv}'
 
     input:
         path variant_summary
@@ -8,11 +10,13 @@ process ResummariseRawSubmissions {
 
     output:
         tuple path("clinvarbitration_${timestamp}.vcf.bgz"), path("clinvarbitration_${timestamp}.vcf.bgz.tbi"), emit: "vcf"
-        path "clinvarbitration_${timestamp}.ht", emit: "ht"
+        tuple path("clinvarbitration_${timestamp}.all.vcf.bgz"), path("clinvarbitration_${timestamp}.all.vcf.bgz.tbi"), emit: "all_vcf"
+        path "clinvarbitration_${timestamp}.tsv", emit: "tsv"
 
     // Generates
-    // clinvarbitration_XX.vcf.bgz + index - VCF containing only pathogenic SNV entries, feeds into annotation
-    // clinvarbitration_XX.ht - a Hail Table containing the summarised data entries
+    // clinvarbitration_XX.vcf.bgz + index - VCF containing only pathogenic SNV entries, feeds into the PM5 codon map
+    // clinvarbitration_XX.all.vcf.bgz + index - every decision, Benign included. Encoded for echtvar at run time
+    // clinvarbitration_XX.tsv - the same decisions as a TSV, consumed by the mito labelling process
     script:
         """
         set -euo pipefail
@@ -21,9 +25,7 @@ process ResummariseRawSubmissions {
             -v "${variant_summary}" \
             -s "${submission_summary}" \
             -o "clinvarbitration_${timestamp}" \
-            -b "${params.clinvar_blacklist}"
-
-        # remove the byproduct TSV which was read into a HT
-        rm -f clinvarbitration_${timestamp}.tsv
+            -b "${params.clinvar_blacklist}" \
+            --all_vcf "clinvarbitration_${timestamp}.all.vcf.bgz"
         """
 }

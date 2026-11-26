@@ -5,11 +5,13 @@ tests relating to the MOI filters
 import pytest
 from mendelbrot.pedigree_parser import PedigreeParser
 
-from talos.models import Coordinates, SmallVariant
+from talos.models import Coordinates, SmallVariant, StructuralVariant
 from talos.moi_tests import (
     BaseMoi,
     ClinVarFilter,
     DominantAutosomal,
+    DominantFilter,
+    GlobalFilter,
     MOIRunner,
     RecessiveAutosomalCH,
     RecessiveAutosomalHomo,
@@ -19,6 +21,7 @@ from talos.moi_tests import (
     XRecessiveFemaleHom,
     XRecessiveMale,
 )
+from talos.utils import find_comp_hets
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -989,3 +992,44 @@ def test_too_common_in_population_true_multi():
             transcript_consequences=[],
         ),
     )
+
+
+def test_x_recessive_female_ch_from_find_comp_hets(pedigree_path: str):
+    """
+    XRecessiveFemaleCH reports a female X comp-het when the pairing comes from find_comp_hets, not a hand-built dict
+    """
+    pedigree = PedigreeParser(pedigree_path)
+    variants = [
+        SmallVariant(
+            het_samples={'female'},
+            coordinates=coords,
+            ab_ratios={'female': 0.5},
+            alt_depths={'female': 25},
+            depths={'female': 50},
+            sample_categories=['categorysample4'],
+            info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': link, 'ac': 10, 'af': 0.0001},
+            transcript_consequences=[],
+        )
+        for coords, link in [(TEST_COORDS_X_1, 'passing1'), (TEST_COORDS_X_2, 'passing2')]
+    ]
+    comp_hets = find_comp_hets(variants, pedigree=pedigree)
+    x_rec = XRecessiveFemaleCH(pedigree=pedigree)
+    results = [result for variant in variants for result in x_rec.run(variant, comp_het=comp_hets)]
+    assert {(result.reasons, frozenset(result.support_vars)) for result in results} == {
+        ('X_RecessiveFemaleCompHet', frozenset({'passing2'})),
+        ('X_RecessiveFemaleCompHet', frozenset({'passing1'})),
+    }
+
+
+@pytest.mark.parametrize(
+    ('gnomad_sv_af', 'global_filtered', 'dominant_filtered'),
+    [(0.005, False, False), (0.02, False, True), (0.05, True, True)],
+)
+def test_sv_gnomad_af_filters(gnomad_sv_af: float, global_filtered: bool, dominant_filtered: bool):
+    """gnomad_sv_af, as read from the labelled SV VCF, is filtered at gnomad_sv_max_af / dominant_gnomad_sv_max_af"""
+    sv = StructuralVariant(
+        coordinates=Coordinates(chrom='1', pos=1, ref='DEL', alt='5000'),
+        info={'gnomad_sv_af': gnomad_sv_af, 'gene_id': 'ENSG1'},
+    )
+    assert GlobalFilter().too_common(sv) is global_filtered
+    assert DominantFilter().too_common(sv) is dominant_filtered

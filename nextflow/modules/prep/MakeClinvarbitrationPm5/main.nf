@@ -1,12 +1,13 @@
 process MakeClinvarbitrationPm5 {
     container params.container
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         path annotated_snv
         val timestamp
 
     output:
-        path "clinvarbitration_${timestamp}.pm5.ht"
+        path "clinvarbitration_${timestamp}.pm5.json"
 
     script:
         """

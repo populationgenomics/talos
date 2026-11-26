@@ -11,25 +11,18 @@ jobs:
   test:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+    - uses: actions/checkout@v6
 
-    # Hail/Spark's bundled Hadoop breaks on Java 23+ (Subject.getSubject removed); match the Docker image's JDK
-    - uses: actions/setup-java@v4
+    - uses: astral-sh/setup-uv@v7
       with:
-        distribution: 'temurin'
-        java-version: '21'
+        python-version: '3.14'
+        enable-cache: true
 
+    # --locked fails the job if uv.lock is out of date with pyproject.toml
     - name: Install packages
-      run: |
-        pip install .[test,cpg]
+      run: uv sync --locked --extra test
 
     - name: test
-      run: pytest -n auto .
+      run: uv run --no-sync pytest -n auto .

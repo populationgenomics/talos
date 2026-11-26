@@ -1,7 +1,7 @@
 """
 Optional 'super logging' for variant exclusions during MOI validation.
 
-When enabled (via [ValidateMOI] super_logging), records one JSON line per
+When enabled (via [ValidateMOI] super_logging_path), records one JSON line per
 (variant, sample, applied_moi) exclusion to a file at [ValidateMOI]
 super_logging_path. If the path ends with '.gz', output is gzip-compressed.
 
@@ -28,16 +28,11 @@ class ExclusionLogger:
     """Stream JSONL exclusion records. Disabled by default; configure to enable."""
 
     def __init__(self) -> None:
-        self.enabled: bool = bool(config_retrieve(['ValidateMOI', 'super_logging'], False))
         self.path: str | None = config_retrieve(['ValidateMOI', 'super_logging_path'], None)
         self._handle: Any = None
 
-        if self.enabled and not self.path:
-            logger.warning('super_logging enabled but super_logging_path not set; disabling super logging')
-            self.enabled = False
-
     def _open(self) -> None:
-        if self._handle is not None or not self.enabled:
+        if self._handle is not None or not self.path:
             return
         assert self.path is not None
         opener = gzip.open if self.path.endswith('.gz') else open
@@ -55,7 +50,7 @@ class ExclusionLogger:
         reason: str,
         details: dict[str, Any] | None = None,
     ) -> None:
-        if not self.enabled:
+        if not self.path:
             return
         self._open()
         payload = {
@@ -67,7 +62,6 @@ class ExclusionLogger:
             'reason': reason,
             'details': details or {},
         }
-        assert self._handle is not None
         self._handle.write(json.dumps(payload) + '\n')
 
     def close(self) -> None:

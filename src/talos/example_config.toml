@@ -59,7 +59,6 @@ callset_max_af = 0.01
 callset_sv_max_af = 0.03
 
 gnomad_max_homozygotes = 5
-gnomad_max_hemizygotes = 5
 
 # Dominant frequency filters - only applied to variants being considered for a dominant MOI.
 # Variants reported in ClinVar as P/LP are exempt from these filters
@@ -82,7 +81,7 @@ clinvar_dominant_gnomad_max_af = 0.00005
 clinvar_callset_max_af = 0.05
 clinvar_dominant_callset_max_af = 0.05
 
-ignore_categories = [ "exomiser", "svdb"]
+ignore_categories = []
 
 # we dismiss variants where the proband doesn't have at least this much alt support
 min_alt_depth = 5
@@ -115,9 +114,9 @@ support_categories = ['alphamissense', 'clinvar0star']
 # any STR loci with unacceptably low signal-to-noise ratios - this is the 'locus' name from STRipy, not the gene ID
 noisy_strs = ['ARX_1', 'ARX_2', 'HOXA13_1', 'HOXA13_2',  'HOXA13_3', 'TCF4', 'RUNX2']
 
-[RunHailFiltering]
+[RunSmallFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
-csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
+csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane_status", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
 
 # variables for the hail operations, including CSQ sets and filter thresholds
 ac_threshold = 0.01
@@ -127,10 +126,13 @@ callset_af_sv_recessive = 0.03
 critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
 spliceai = 0.5
 am_pathogenicity = 0.564
-minimum_depth = 10
 heteroplasmy_min = 0.2
+minimum_depth = 10
+min_alt_depth = 5
+af_threshold = 0.01
+min_ac_to_filter = 5
 
-[RunHailFiltering.de_novo]
+[RunSmallFiltering.de_novo]
 min_child_ab = 0.2
 min_depth = 5
 max_depth = 1000
@@ -142,7 +144,7 @@ apply_min_all_sample_gq = true
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
 #min_all_sample_gq = 15
 
-[RunHailFilteringSv]
+[RunSvFiltering]
 # prefix for the population frequency INFO fields, i.e. {gnomad_population}_sv_AF and _sv_SVID
 # the SV annotation workflow reads this same key when renaming SVAFotate's output, so the two cannot disagree
 gnomad_population = 'gnomad_v4.1'
@@ -160,10 +162,10 @@ variant_template = "e.g. https://seqr.populationgenomics.org.au/variant/{variant
 [HPOFlagging]
 # this section relates to phenotype-matching the final variant set
 
-# set this to True to do a semantic term comparison when phenotype matching
-# this does a wiggly semantic similarity test between participant and gene HPOs, through SemSimian
-# if False, we will always do a set intersection on HPO terms
+# only terms within HPO's Phenotypic abnormality subtree are compared; exact matches between participant and gene
+# HPO terms always count. Set this to True to also match terms which are similar, rather than identical
 semantic_match = true
 
-# min similarity score when doing a semsimian termset similarity test
-min_similarity = 14.0
+# with semantic_match, a participant term and a gene term match if their most specific shared ancestor term has at
+# most this many descendant terms (counting itself) in HPO
+max_ancestor_descendants = 25

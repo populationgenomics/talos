@@ -1,0 +1,6 @@
+[
+  {"family_id": "FAM1", "individual_id": "PROBAND", "paternal_id": "FATHER", "maternal_id": "MOTHER", "sex": 2, "affected": 2, "notes": ""},
+  {"family_id": "FAM1", "individual_id": "FATHER", "paternal_id": null, "maternal_id": null, "sex": 1, "affected": 1, "notes": ""},
+  {"family_id": "FAM1", "individual_id": "MOTHER", "paternal_id": null, "maternal_id": null, "sex": 2, "affected": 1, "notes": ""},
+  {"family_id": "FAM2", "individual_id": "UNSEQUENCED", "paternal_id": null, "maternal_id": null, "sex": 1, "affected": 2, "notes": ""}
+]

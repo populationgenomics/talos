@@ -14,10 +14,13 @@ from talos.models import (
     PanelApp,
     PanelShort,
     ParticipantHPOPanels,
+    StrDetail,
 )
 from talos.static_values import get_granular_date
 from talos.unified_panelapp_parser import (
+    CUSTOM_PANEL_CONFIDENCE,
     CUSTOM_PANEL_ID,
+    DEFAULT_PANEL,
     ORDERED_MOIS,
     extract_participant_data_from_pedigree,
     fetch_genes_for_panels,
@@ -25,8 +28,44 @@ from talos.unified_panelapp_parser import (
     match_hpos_to_panels,
     match_participants_to_panels,
     remove_blacklisted_genes,
+    remove_pheno_match_only,
     update_moi_from_config,
 )
+
+OTHER_PANEL = 999
+
+
+def test_remove_pheno_match_only(monkeypatch):
+    """
+    pheno-match-only entries lose the default panel: removed entirely if it was their only panel, otherwise
+    the default panel is dropped from their set. Entries not on the default panel are left alone - this used to
+    raise KeyError, removing a panel the entry didn't have
+    """
+    # every config lookup returns its default - pheno_match_strs is True, so every STR is pheno-match-only
+    monkeypatch.setattr('talos.unified_panelapp_parser.config_retrieve', lambda _key, default=None: default)
+    panelapp = PanelApp(
+        genes={
+            'ENSG_ONLY_DEFAULT': GeneDetail(symbol='A', panels={DEFAULT_PANEL}),
+            'ENSG_BOTH': GeneDetail(symbol='B', panels={DEFAULT_PANEL, OTHER_PANEL}),
+            'ENSG_NOT_DEFAULT': GeneDetail(symbol='C', panels={OTHER_PANEL}),
+        },
+        strs={
+            'STR_ONLY_DEFAULT': StrDetail(symbol='D', panels={DEFAULT_PANEL}),
+            'STR_BOTH': StrDetail(symbol='E', panels={DEFAULT_PANEL, OTHER_PANEL}),
+            'STR_NOT_DEFAULT': StrDetail(symbol='F', panels={OTHER_PANEL}),
+        },
+    )
+
+    remove_pheno_match_only(panelapp, pheno_match=['all'])
+
+    assert {ensg: gene.panels for ensg, gene in panelapp.genes.items()} == {
+        'ENSG_BOTH': {OTHER_PANEL},
+        'ENSG_NOT_DEFAULT': {OTHER_PANEL},
+    }
+    assert {name: str_.panels for name, str_ in panelapp.strs.items()} == {
+        'STR_BOTH': {OTHER_PANEL},
+        'STR_NOT_DEFAULT': {OTHER_PANEL},
+    }
 
 
 def test_match_hpos_to_panels(fake_obo_path):
@@ -173,6 +212,7 @@ def test_update_moi_from_config_add_new_gene():
     assert 'ENSG1' in panelapp_data.genes
     assert panelapp_data.genes['ENSG1'].moi == ORDERED_MOIS[0]
     assert CUSTOM_PANEL_ID in panelapp_data.genes['ENSG1'].panels
+    assert panelapp_data.genes['ENSG1'].panel_confidences[CUSTOM_PANEL_ID] == CUSTOM_PANEL_CONFIDENCE
 
 
 def test_update_moi_from_config_update_existing_gene():
@@ -182,6 +222,7 @@ def test_update_moi_from_config_update_existing_gene():
     update_moi_from_config(panelapp_data, add_genes)
     assert panelapp_data.genes['ENSG2'].moi == ORDERED_MOIS[2]
     assert CUSTOM_PANEL_ID in panelapp_data.genes['ENSG2'].panels
+    assert panelapp_data.genes['ENSG2'].panel_confidences[CUSTOM_PANEL_ID] == CUSTOM_PANEL_CONFIDENCE
 
 
 def test_remove_blacklisted_genes():

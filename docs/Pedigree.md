@@ -24,6 +24,24 @@ Broadly this file is based on the [PLINK `.fam` file format](https://www.cog-gen
 | `Affected`  | The affection status of this participant. `1` is unaffected, `2` is affected, `0` is unknown. The Strings "unaffected" and "affected" are accepted as `1` and `2` respectively.                                                                                                                                           |
 | `HPO`       | Optional. A comma- or semicolon-separated list of HPO terms (e.g. `HP:0000118,HP:0001250`). This is used to provide additional phenotypic information for the participant. This column can be completely absent if phenotypic data is not available; the parser will handle column 7 being present for only some samples. |
 
+## Pedigree and callset samples
+
+The pedigree defines the cohort. The variant callsets can hold more samples than it does, e.g. a dataset-wide joint
+call analysed one cohort at a time:
+
+* Small-variant and `sv` VCFs are cut down to the pedigree's samples as they're annotated, dropping any variant no
+  pedigree sample carries. Annotation then runs, and its products are published, at cohort size. A VCF that already
+  holds only pedigree samples is used unchanged.
+* `sv_annotated`, mito and STR VCFs aren't rewritten. The analysis reads only the pedigree's samples from them.
+* Pedigree samples missing from a VCF are logged as a warning. A VCF sharing no samples with the pedigree fails the run.
+
+The small-variant `AC`/`AF`/`AN` fields are recalculated after subsetting, so they describe the cohort, not the
+original callset.
+
+Annotation products are reused across runs without checking the pedigree again (see the
+[README](https://github.com/populationgenomics/talos#readme)). Adding samples to a cohort's pedigree means deleting
+its `<cohort>_annotated` directory, or they'll be missing from the reused shards.
+
 ## Pedigree Module
 
 Talos uses a companion library [MendelBrot](https://github.com/MattWellie/mendelbrot) to parse Pedigrees. Just what the world needed, yet another pedigree parsing utility... Here the decision was driven by needing specific validation (e.g. allowing for 6 or 7 column data, and validating the HPO terms if provided) and specific functionality (being able to re-write the pedigree as a singletons, or as a strict 6-column for Hail compatibility).

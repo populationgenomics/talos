@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Script for gathering large inputs required by Talos
 # This runs a download from multiple different sources
 # Output file names created/expected by this script match the initial configuration file content in `talos.config` and `annotation.config`
@@ -10,15 +12,33 @@ WINDOW_NAME="Downloads"
 TMX_WINDOW_ID=""
 declare -a DOWNLOAD_TARGETS=()
 
+# All log lines (banners, INFO/WARN/JOB START/SUMMARY) are tee'd here so they
+# survive and stay readable even if the tmux session that ran them is
+# detached, killed, or never attached to. Appended, not truncated, so a
+# restart after a crash keeps the download history.
+LOGFILE="${LOGFILE:-$(pwd)/gather_files.log}"
+touch "$LOGFILE" 2>/dev/null
+
+log() {
+  echo "$@" | tee -a "$LOGFILE"
+}
+
 if [ ! -z "$TMX" ] && [ -z "$TMUX" ]; then
   # tmux installed, but not in a tmux session. restart in tmux.
-  tmux new-session -d -s "$SESSION_NAME" sh "$0" "$@"
+  # Re-exec with bash, not sh: this script uses arrays, `local` and `declare`.
+  log "[INFO] Running downloads in tmux session '$SESSION_NAME'. Log persisted to $LOGFILE"
+  log "[INFO] To follow progress from outside tmux: tail -f $LOGFILE"
+  LOGFILE="$LOGFILE" tmux new-session -d -s "$SESSION_NAME" bash "$0" "$@"
   tmux attach-session -t "$SESSION_NAME"
+  # The tmux session owns the real output; replay the log so the invoking
+  # terminal still holds a record after the session detaches or is killed.
+  echo
+  echo "[INFO] tmux session ended. Log retained at $LOGFILE"
   exit 0
 fi
 
 cleanup() {
-  echo "[INFO] Caught exit signal. Cleaning up..."
+  log "[INFO] Caught exit signal. Cleaning up..."
   CURRENT_PGID=$(ps -o pgid= -p $$ | tr -d '[:space:]')
   pkill -SIGTERM -g "$CURRENT_PGID" -f curl
 
@@ -30,7 +50,7 @@ cleanup() {
       $TMX kill-window -t "$TMX_WINDOW_ID"
     fi
   fi
-  echo "[INFO] Cleanup complete."
+  log "[INFO] Cleanup complete."
   exit 0
 }
 
@@ -55,7 +75,7 @@ start_download() {
 
   # If the final file already exists, skip (assume complete). Could add checksum logic here if desired.
   if [ -f "$final" ]; then
-    echo "[INFO] $final already present, skipping download."
+    log "[INFO] $final already present, skipping download."
     return 0
   fi
 
@@ -63,17 +83,27 @@ start_download() {
   # curl exit codes: 18 = partial file; we keep part_file for later resume.
   # On success (exit 0) we atomically mv into place.
   # NOTE: All internal $ variables are escaped (\$) so they are evaluated when the command runs, not now.
+  # Status lines are appended to the logfile as well as printed to the pane, because the pane
+  # is destroyed on completion/cleanup and its scrollback goes with it. The curl progress bar
+  # (-# writes to stderr) is deliberately NOT logged - it is carriage-return spam in a file.
   local script_name="$(basename "$0")"
-  local cmd="echo \"$banner\"; echo; curl -C - -# -L --fail -o \"$part_file\" \"$url\" && mv -f \"$part_file\" \"$final\" || { rc=\$?; if [ \"\$rc\" -ne 0 ]; then echo \"[WARN] $final Download failed for (exit \\${rc}). Restart ${script_name} to gracefully resume download.\"; fi; }"
+  local cmd="echo \"$banner\" | tee -a \"$LOGFILE\"; echo; curl -C - -# -L --fail -o \"$part_file\" \"$url\" && mv -f \"$part_file\" \"$final\" && echo \"[DONE] $final download complete.\" | tee -a \"$LOGFILE\" || { rc=\$?; if [ \"\$rc\" -ne 0 ]; then echo \"[WARN] $final Download failed for (exit \\${rc}). Restart ${script_name} to gracefully resume download.\" | tee -a \"$LOGFILE\"; fi; }"
   if [ -z $TMX ]; then
      ( eval "$cmd" ) &
   else
-    echo "[JOB START] Starting download for: $url to $output."
+    log "[JOB START] Starting download for: $url to $output."
     if [ -z "$TMX_WINDOW_ID" ]; then
       TMX_WINDOW_ID=$($TMX new-window -P -n "$WINDOW_NAME" "$cmd")
     else
-      $TMX split-window -v -t "$TMX_WINDOW_ID" "$cmd"
-      $TMX select-layout -t "$TMX_WINDOW_ID" even-vertical
+      # tmux refuses a split once panes get too small ("no space for new pane").
+      # A failed split must not lose the download - fall back to a plain
+      # background job whose output goes to the logfile only.
+      if $TMX split-window -v -t "$TMX_WINDOW_ID" "$cmd" 2>/dev/null; then
+        $TMX select-layout -t "$TMX_WINDOW_ID" tiled
+      else
+        log "[INFO] No tmux pane space left for $output; running in background (see $LOGFILE)."
+        ( eval "$cmd" ) >/dev/null 2>&1 &
+      fi
     fi
   fi
 }
@@ -84,13 +114,14 @@ await() {
   else
     # No downloads were started in tmux — nothing to wait on.
     if [ -z "$TMX_WINDOW_ID" ]; then
+      wait
       return 0
     fi
   last_pane_count=-1
     while true; do
       pane_count=$($TMX list-panes -t "$TMX_WINDOW_ID" 2>/dev/null | wc -l)
       if [ $last_pane_count != $pane_count ]; then
-        $TMX select-layout -t "$TMX_WINDOW_ID" even-vertical
+        $TMX select-layout -t "$TMX_WINDOW_ID" tiled
         last_pane_count=$pane_count
       fi
       if [ $pane_count == 0 ]; then
@@ -98,36 +129,28 @@ await() {
       fi
       sleep "$POLL_INTERVAL"
     done
+    # Downloads that couldn't get a pane ran as plain background jobs.
+    wait
   fi
 }
 
 trap cleanup SIGINT SIGTERM
 
-# Echtvar-encoded gnomAD 4.1 population frequencies - this is a big one (~6GB) so it's started early and backgrounded
-ECHTVAR_FILE="gnomad_4.1_region_merged_GRCh38_whole_genome"
-start_download https://zenodo.org/records/15222100/files/gnomad_4.1_region_merged_GRCh38_whole_genome?download=1 "${ECHTVAR_FILE}" "\
-Downloading Echtvar from https://zenodo.org/records/15222100"
-
-# Monarch phenotype DB - another large download. 17GB decompressed
-COMPRESSED_PHENIO="phenio.db.gz"
-DECOMPRESSED_PHENIO="phenio.db"
-if [ ! -f "${DECOMPRESSED_PHENIO}" ]; then
-  echo "[INFO] phenio.db not found, downloading..."
-  start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
-else
-  echo "[INFO] phenio.db already exists, skipping download."
-fi
+# Echtvar-encoded gnomAD 4.1 population frequencies - this is a big one (~4GB)
+ECHTVAR_FILE="gnomad_4.1_22297079_GRCh38_whole_genome"
+start_download https://zenodo.org/records/22297079/files/gnomad_4.1_whole_genome.zip?download=1 "${ECHTVAR_FILE}" "\
+Downloading Echtvar from https://zenodo.org/records/22297079"
 
 # GRCh38 reference genome
 GRCh38="ref.fa.gz"
 GRCh38_decompressed="ref.fa"
 # if it doesn't exist, download it
 if [ ! -f "${GRCh38_decompressed}" ]; then
-  echo "[INFO] compressed ref.fa not found, attempting download..."
+  log "[INFO] compressed ref.fa not found, attempting download..."
     GRCh38_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz"
     start_download ${GRCh38_URL} ${GRCh38} "Downloading compressed GRCh38 reference genome from UCSC"
 else
-  echo "[INFO] ${GRCh38_decompressed} already exists, skipping download."
+  log "[INFO] ${GRCh38_decompressed} already exists, skipping download."
 fi
 
 # MANE gene data
@@ -136,7 +159,7 @@ start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5/M
 # Ensembl GFF3 data
 GFF3_ORIGINAL="Homo_sapiens.GRCh38.116.chr.gff3.gz"
 GFF3_chrM_RENAMED="Homo_sapiens.GRCh38.116.MTtoM.gff3.gz"
-start_download https://ftp.ensembl.org/pub/release-116/vertebrates/gff3/homo_sapiens/Homo_sapiens.GRCh38.116.chr.gff3.gz
+start_download https://ftp.ensembl.org/pub/release-116/gff3/homo_sapiens/Homo_sapiens.GRCh38.116.chr.gff3.gz
 
 # Jax lab file for phenotype matching
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/hp.obo
@@ -146,9 +169,10 @@ start_download https://github.com/obophenotype/human-phenotype-ontology/releases
 # mitochondrial annotations
 start_download https://www.mitomap.org/downloads/mitotip_scores.txt
 
-start_download "https://mitimpact.mcb2lab.org/cdn/nAPOGEE_v1.0.0.txt.zip"
-
-start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
+# MitImpact 3.1.3 has been superseded by MitImpact 4 (comma-delimited CSV inside the zip).
+# this single ZIP archive contains both the nAPOGEE and APOGEE2 data
+# https://mitimpact.mcb2lab.org/downloads
+start_download "https://mitimpact.mcb2lab.org/static/downloads/MitImpact4_V059.zip"
 
 # AlphaMissense raw data
 AM="AlphaMissense_hg38.tsv.gz"
@@ -169,7 +193,7 @@ start_download "https://storage.googleapis.com/gcp-public-data--broad-references
 
 # MANE GTF, used by GATK SVAnnotate for gene consequences.
 # SVAnnotate requires one transcript per gene, which MANE Select satisfies by construction.
-# This is the same MANE release as the summary file above, so the gene symbols agree with RunHailFilteringSv
+# This is the same MANE release as the summary file above, so the gene symbols agree with RunSmallFilteringSv
 start_download "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5/MANE.GRCh38.v1.5.ensembl_genomic.gtf.gz"
 
 THIS_MONTH=$(date '+%Y-%m')
@@ -188,7 +212,7 @@ await
 # * any ancestry-specific columns
 # Loading the whole file exhausts memory on most VMs, so reduction in advance to only the fields we care about is ideal.
 if [ ! -f "${SKINNY_SVAF}" ] && [ -f "${SVA}" ]; then
-    echo "Minimising SVAFotate reference BED"
+    log "Minimising SVAFotate reference BED"
     gunzip -c ${SVA} \
       | awk -F'\t' 'NR == 1 || $6 == "gnomAD"' \
       | cut -f1-21,176 \
@@ -197,19 +221,13 @@ fi
 
 #if compressed exists, but decompressed doesn't, gunzip it
 if [ ! -f "${GRCh38_decompressed}" ] && [ -f "${GRCh38}" ]; then
-    echo "Decompressing reference Fasta"
+    log "Decompressing reference Fasta"
     gunzip ${GRCh38}
-fi
-
-# same for the phenio files
-if [ ! -f "${DECOMPRESSED_PHENIO}" ] && [ -f "${COMPRESSED_PHENIO}" ]; then
-    echo "Decompressing Phenio.db"
-    gunzip ${COMPRESSED_PHENIO}
 fi
 
 # rinse the Ensembl GFF3 file through a chrMT -> chrM rename
 if [ ! -f "${GFF3_chrM_RENAMED}" ] && [ -f "${GFF3_ORIGINAL}" ]; then
-    echo "Renaming MT to M in ensembl GFF3 file"
+    log "Renaming MT to M in ensembl GFF3 file"
     gunzip -c "${GFF3_ORIGINAL}" | sed 's/^MT/M/' | gzip > "${GFF3_chrM_RENAMED}"
 fi
 
@@ -218,13 +236,13 @@ summary_fail=0
 script_name_summary="$(basename "$0")"
 for target in "${DOWNLOAD_TARGETS[@]}"; do
   if [ ! -f "$target" ]; then
-    echo "[MISSING] $target"
+    log "[MISSING] $target"
     summary_fail=$((summary_fail+1))
   fi
 done
 
 if [ $summary_fail -eq 0 ]; then
-  echo "[SUCCESS] All ${#DOWNLOAD_TARGETS[@]} downloads completed successfully."
+  log "[SUCCESS] All ${#DOWNLOAD_TARGETS[@]} downloads completed successfully."
 else
-  echo "[SUMMARY] $summary_fail of ${#DOWNLOAD_TARGETS[@]} downloads missing. Restart ${script_name_summary} to gracefully resume."
+  log "[SUMMARY] $summary_fail of ${#DOWNLOAD_TARGETS[@]} downloads missing. Restart ${script_name_summary} to gracefully resume."
 fi

@@ -3,28 +3,52 @@
 nextflow.enable.dsl=2
 
 /*
-    Talos Unified Workflow
-    ======================
+    Talos Workflow - generic entrypoint
+    ===================================
 
-    This is the main entry point for the Talos pipeline. It orchestrates two distinct workflows:
+    Runs the shared TALOS_PIPELINE (nextflow/talos_pipeline.nf) over the cohorts in an input TSV:
 
     1. ANNOTATION: Annotates VCF file(s) with the prepared data.
-    2. SV_ANNOTATION: Annotates a joint-called SV VCF, if the input TSV carries an `sv` column.
+    2. SV_ANNOTATION: Annotates a joint-called SV VCF, for each cohort with an `sv` VCF.
     3. TALOS: Runs the core Talos analysis/filtering/reporting.
 
+    Annotation (small-variant and SV alike) is idempotent: cohorts whose annotation products are already published
+    (keyed on the shard manifest / annotated SV VCF) are reused, not re-annotated. A reanalysis cycle is simply
+    re-running this workflow; delete a cohort's `${cohort}_annotated` directory to force re-annotation.
+
+    Outputs are published with publishDir, not 'workflow outputs'. This cuts against the indicated direction of
+    travel for NextFlow - "The publishDir directive will continue to be supported, but will be deprecated.".
+    For CPG and the general public to run the same version of Talos, it must match up to our operational requirements
+    of each 'cohort' being analysed writing to its segregated bucket. Workflow Outputs only accepts a single output
+    bucket for a whole analysis, which is incompatible. The CPG entrypoint (./cpg_main.nf) builds a separate output path
+    per input row, and uses that to decide where outputs are written to. For public use this currently only permits one
+    output directory/bucket, with cohort data segregated within it. If a separate bucket per analysis row matches your
+    requirements, the plumbing exists, please raise an issue and we can discuss your use case.
+
     Usage:
-    nextflow run nextflow/main.nf --input_tsv [path] [other params...]
+    nextflow run main.nf --input_tsv [path] --outdir [path] [other params...]
 */
 
-// Import specific workflows
-include { ANNOTATION } from './nextflow/annotation'
-include { SV_ANNOTATION } from './nextflow/sv_annotation'
-include { TALOS } from './nextflow/talos'
+include { TALOS_PIPELINE } from './nextflow/talos_pipeline'
 
 // analysis outputs are published to a per-run dated directory, ${cohort}_analysis_YYYYMMDD -
 // annotation products go to the undated ${cohort}_annotated, which is reused across cycles
 def runDate() {
     workflow.start.format(java.time.format.DateTimeFormatter.ofPattern('yyyyMMdd'))
+}
+
+// output directories are carried as plain Strings built from params.outdir (itself a String), never
+// by interpolating a Path - that drops the gs:// scheme from cloud paths
+def outRoot() {
+    params.outdir.toString().replaceAll('/+$', '')
+}
+
+def annotatedDir(cohort) {
+    "${outRoot()}/${cohort}_annotated".toString()
+}
+
+def analysisDir(cohort) {
+    "${outRoot()}/${cohort}_analysis_${runDate()}".toString()
 }
 
 // build the content of a proposed input TSV for the next reanalysis cycle: this run's input TSV
@@ -58,13 +82,8 @@ def nextInputTsv(input_tsv, resultsByCohort) {
 
 workflow {
 	main:
-	if (file(workflow.outputDir).simpleName == file(params.processed_annotations).simpleName) {
-    	println "Output Directory (${workflow.outputDir}) is probably not set correctly, use config or `-output-dir`"
-		exit 1
-    }
-
-	if (!file(params.mane_json).exists()) {
-		println "MANE JSON not available, please run the Talos Prep workflow (--entry preparation)"
+	if (!params.outdir) {
+		println "Required --outdir argument not provided"
 		exit 1
 	}
 
@@ -73,124 +92,20 @@ workflow {
 		exit 1
 	}
 
-	if (!params.ensembl_gff) {
-		println "params.ensembl_gff (${params.ensembl_gff}) is not available, please re-run the input file download script & preparation.nf workflow"
-		exit 1
-	}
-
-	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true).first()
-	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
-	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
-
-	ch_inputs = channel.fromPath(params.input_tsv)
+	// one Map per cohort: the TSV row, plus where that cohort's outputs are published
+	ch_cohorts = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
-		.map { row -> tuple(row.cohort, row.path, row.type) }
+		.map { row -> row + [annotated_dir: annotatedDir(row.cohort), analysis_dir: analysisDir(row.cohort)] }
 
-	ch_talos_inputs = channel.fromPath(params.input_tsv)
-		.splitCsv(header: true, sep: '\t')
-		.map { row -> tuple(
-			row.cohort,
-			row.path,
-			row.type,
-			file(row.pedigree, checkIfExists: true),
-			file(row.config, checkIfExists: true),
-			// optional columns - an empty/absent cell becomes [], which stages nothing and is falsy in every downstream truthiness check
-			row.history ? file(row.history, checkIfExists: true) : [],
-			row.ext_ids ? file(row.ext_ids, checkIfExists: true) : [],
-			row.seqr_map ? file(row.seqr_map, checkIfExists: true) : [],
-			row.mito ? file(row.mito, checkIfExists: true) : [],
-		) }
-
-	// the SV path is entirely optional, and only wired up if the input TSV declares an `sv` column.
-	// this is checked eagerly rather than per-row so that a cohort with no SV data never requires the
-	// SV reference files to be present at all
-	def sv_requested = file(params.input_tsv).withReader { handle -> handle.readLine() }.tokenize('\t').contains('sv')
-
-	ch_sv_annotated = channel.empty()
-	ch_sv_fresh = channel.empty()
-
-	if (sv_requested) {
-		ch_sv_inputs = channel.fromPath(params.input_tsv)
-			.splitCsv(header: true, sep: '\t')
-			.map { row -> tuple(
-				row.cohort,
-				row.sv ? file(row.sv, checkIfExists: true) : [],
-				file(row.config, checkIfExists: true),
-			) }
-
-		SV_ANNOTATION(
-			ch_ref_genome,
-			ch_sv_inputs,
-		)
-
-		ch_sv_annotated = SV_ANNOTATION.out.annotated
-		ch_sv_fresh = SV_ANNOTATION.out.fresh
-	}
-
-	ANNOTATION(
-		ch_gff,
-		ch_mane,
-		ch_ref_genome,
-		ch_inputs,
-	)
-
-	ch_talos_combined = ANNOTATION.out.mts
-		.join(ch_talos_inputs)
-		.map { cohort, mts, _inpath, _intype, pedigree, config, history, ext, seqr, mito -> tuple(cohort, mts, pedigree, config, history, ext, seqr, mito) }
-
-	TALOS(
-		ch_mane,
-		ch_gff,
-		ch_ref_genome,
-		ch_talos_combined,
-		ch_sv_annotated,
-	)
+	TALOS_PIPELINE(ch_cohorts)
 
 	// a ready-to-use input TSV for the next reanalysis cycle - identical to this run's input, with
-	// `history` repointed at the results JSON published for that cohort by this run. The paths are
-	// the published destinations, which don't exist until the run completes, so this is a proposal
-	// to be reviewed, not an output consumed by anything in this run
-	ch_next_input_tsv = TALOS.out.json
-		.map { cohort, results_json -> tuple(cohort, "${workflow.outputDir}/${cohort}_outputs/${results_json.name}".toString()) }
+	// `history` repointed at the results JSON published for that cohort by this run, written to the
+	// root of the output directory. The paths are the published destinations, which don't exist until
+	// the run completes, so this is a proposal to be reviewed, not an output consumed by anything in this run
+	TALOS_PIPELINE.out.json
+		.map { row, published -> tuple(row.cohort, published) }
 		.collect(flat: false)
-		.map { pairs -> nextInputTsv(file(params.input_tsv), pairs.collectEntries { pair -> pair }) }
-		.collectFile(name: "talos_input_${runDate()}.tsv")
-
-
-	publish:
-		next_input_tsv = ch_next_input_tsv
-		mts = ANNOTATION.out.mts
-    	html = TALOS.out.html
-		json = TALOS.out.json
-		labelled = TALOS.out.labelled
-		labelled_sv = TALOS.out.labelled_sv
-		panelapp = TALOS.out.panelapp
-		sv_annotated = ch_sv_fresh
-}
-
-output {
-	// proposed input TSV for the next cycle - published to the root of the output directory
-	next_input_tsv {
-	}
-	mts {
-		path { id, _mts -> "${id}_outputs" }
-	}
-	html {
-		path { id, _html -> "${id}_outputs" }
-	}
-	json {
-		path { id, _json -> "${id}_outputs" }
-	}
-	panelapp {
-		path { id, _panelapp -> "${id}_outputs" }
-	}
-	labelled {
-		path { id, _labelled, _labelled_idx -> "${id}_outputs" }
-	}
-	labelled_sv {
-		path { id, _labelled_sv, _labelled_sv_idx -> "${id}_outputs" }
-	}
-	sv_annotated {
-		path { id, _vcf, _vcf_idx -> "${id}_outputs" }
-	}
+		.map { pairs -> nextInputTsv(file(params.input_tsv), pairs.collectEntries()) }
+		.collectFile(name: "talos_input_${runDate()}.tsv", storeDir: file(outRoot()))
 }
